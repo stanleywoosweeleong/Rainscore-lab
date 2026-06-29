@@ -150,6 +150,22 @@ input:focus,select:focus{outline:2px solid var(--rain);outline-offset:0}
 .bias.wet{color:#6db3f0} .bias.dry{color:#e3a857} .bias.zero{color:var(--ink2)}
 .errsplit{display:flex;flex-direction:column;gap:1px;align-items:center}
 .errsplit .miss{color:#f08fb0} .errsplit .fa{color:var(--ink2)}
+/* charts */
+.charts-card{margin-top:14px}
+.charts-title{font-size:15px;font-weight:700;color:var(--ink);margin-bottom:4px}
+.chart-warn{font-size:11.5px;color:#e3a857;background:rgba(227,168,87,.12);
+  border-radius:8px;padding:7px 10px;margin:6px 0 10px}
+.chart-block{margin-top:16px}
+.chart-h{font-size:12.5px;font-weight:700;color:var(--ink);margin-bottom:2px}
+.chart-sub{font-size:10.5px;color:var(--ink2);margin-bottom:8px;line-height:1.4}
+.chartsvg{width:100%;height:auto;max-width:360px;display:block}
+.scatter-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.scatter-cell{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:6px 4px 2px;text-align:center}
+.scatter-name{font-size:10.5px;font-weight:700;margin-bottom:2px}
+.scattersvg{width:100%;height:auto;display:block}
+.chart-scroll-x{overflow-x:auto;-webkit-overflow-scrolling:touch}
+.timesvg{height:auto;display:block}
+@media(max-width:420px){ .scatter-grid{grid-template-columns:repeat(2,1fr)} }
 .mcol .mval{font-size:22px;font-weight:800;line-height:1.1;margin-top:1px;
   font-variant-numeric:tabular-nums}
 .vs3 .mcol .mval{font-size:19px}
@@ -337,12 +353,16 @@ footer{text-align:center;padding:18px 10px 8px;font-size:11px;color:var(--ink2)}
       <span class="models-bar-edit">✎</span>
     </button>
     <button class="btn btn-primary" id="btnSync" type="button">🔄 <span id="t_sync">Update records</span></button>
+    <button class="btn btn-ghost" id="btnExport" type="button" style="margin-top:8px">⬇ <span id="t_export">Export CSV (raw data)</span></button>
     <div class="status" id="syncStatus"></div>
     <div class="banner info" id="howNote" style="margin-top:12px"></div>
   </div>
 
   <!-- VERDICT -->
   <div id="verdictMount"></div>
+
+  <!-- CHARTS -->
+  <div id="chartsMount"></div>
 
   <!-- TABLE -->
   <div id="tableMount"></div>
@@ -356,7 +376,7 @@ footer{text-align:center;padding:18px 10px 8px;font-size:11px;color:var(--ink2)}
 
 const TZ = "Asia/Kuching";
 const STORE_KEY = "rainscore_lab_v1";
-const CACHE_TAG = "rainscore-lab-20260627-06";
+const CACHE_TAG = "rainscore-lab-20260627-08";
 const DRY_THRESHOLD = 1.0;   // mm — <1mm counts as a "dry day" (field-adjustable)
 const PREV_HOST = "https://previous-runs-api.open-meteo.com/v1/forecast";
 const ARCH_HOST = "https://archive-api.open-meteo.com/v1/archive";
@@ -399,7 +419,7 @@ const I18N = {
   zh:{
     brandName:"雨准 Lab", brandSub:"预报对比实际",
     locations:"地点", addloc:"+ 新增地点", locname:"名称", lat:"纬度", lon:"经度", namePh:"我的果园",
-    gps:"使用我的 GPS", save:"保存地点", data:"数据", sync:"更新记录",
+    gps:"使用我的 GPS", save:"保存地点", data:"数据", sync:"更新记录", exportCsv:"导出 CSV 原始数据",
     foot:"预报：ECMWF IFS 9km · DWD ICON · JMA GSM · 实际：ERA5 再分析 · CC BY 4.0",
     langBtn:"中",
     emptyLoc:"点右上角 ＋ 新增第一个果园地点", emptyLocBig:"📍",
@@ -434,6 +454,10 @@ const I18N = {
     modelsLabel:"模式", pickTitle:"选择对比模式", pickHint:"选 1 到 6 个模式来对比（点选／取消，数字是显示顺序）。换模式后，新模式只会从最近 7 天开始有数据，往后逐日累积。",
     pickAtLeast:(n)=>`至少选 ${n} 个模式`, pickReadyN:(n)=>`已选 ${n} 个 · 可以保存 ✓`,
     confLow:"样本太少", confMid:"参考", confHigh:"可靠",
+    chartsTitle:"图表对比", chartMae:"平均误差排名（越短越准）",
+    chartScatter:"预报 vs 实际", chartScatterSub:"点越靠对角线越准；偏上＝报多了，偏下＝报少了",
+    chartTime:"每日误差", chartTimeSub:"零线以上＝偏多，以下＝偏少",
+    chartThin:"⚠ 天数还少，图表仅供参考，别太当真",
     biasWet:"偏多", biasDry:"偏少", biasNone:"无偏差",
     missRain:"漏雨", falseAlarm:"空报",
     missRainFull:"模型说无雨，实际有雨（危险）", falseAlarmFull:"模型说有雨，实际无雨（虚惊）",
@@ -455,12 +479,13 @@ const I18N = {
       { h:"「样本太少 / 参考 / 可靠」", p:"顶部的小标签。实际雨量（ERA5）约延迟 5 天，所以刚开始能比对的天数很少，排名会跳动、不可靠。少于 8 天＝样本太少；8–19 天＝参考；20 天以上＝可靠。等到「可靠」再下结论。" },
       { h:"怎么用", p:"点右上角 ＋ 新增果园（输入坐标或用 GPS）。点「模式」选要比的模式。每天打开 App 会自动记录当天预报，并用最近 7 天存档补回。记录一天天累积，约一个月后最完整。" },
       { h:"分享结果", p:"在记分卡点「分享到 WhatsApp」，会带上各模式的误差、偏向、漏雨／空报和可靠度，可预览后发出。把你的结果发回来，就能集合大家不同果园的数据一起看。" },
+      { h:"方法说明（技术）", p:"预报：Open-Meteo「Previous Runs」API 的 precipitation_previous_day1，即各模式在前一天对该日的 24 小时预报（前置时间固定为 24h）。逐时降水按 Asia/Kuching 本地日累加为日总量。实际：ERA5 再分析（archive-api），约延迟 5 天。注意 ERA5 本身是同化模式的网格估计，非实地雨量计，对热带对流性降雨有已知局限。「有雨」阈值＝1.0 mm/日。平均误差＝MAE；偏向＝平均带符号误差；漏雨／空报＝2×2 列联表的漏报与误报。样本少时差异未必有统计显著性——本 App 只给启发式可靠度标签，不做显著性检验。要自己分析可用「导出 CSV」。" },
     ],
   },
   en:{
     brandName:"RainScore Lab", brandSub:"forecast vs actual",
     locations:"Locations", addloc:"+ Add a location", locname:"Name", lat:"Latitude", lon:"Longitude", namePh:"My Orchard",
-    gps:"Use my GPS", save:"Save location", data:"Data", sync:"Update records",
+    gps:"Use my GPS", save:"Save location", data:"Data", sync:"Update records", exportCsv:"Export CSV (raw data)",
     foot:"Forecasts: ECMWF IFS 9km · DWD ICON · JMA GSM · Actual: ERA5 reanalysis · CC BY 4.0",
     langBtn:"EN",
     emptyLoc:"Tap ＋ (top right) to add your first orchard", emptyLocBig:"📍",
@@ -495,6 +520,10 @@ const I18N = {
     modelsLabel:"Models", pickTitle:"Choose models to compare", pickHint:"Pick 1 to 6 models to compare (tap to select/deselect; the number is display order). After switching, a new model only has data from the last 7 days and builds up daily from there.",
     pickAtLeast:(n)=>`Pick at least ${n} model`, pickReadyN:(n)=>`${n} selected · ready to save ✓`,
     confLow:"too few days", confMid:"indicative", confHigh:"reliable",
+    chartsTitle:"Visual comparison", chartMae:"Avg miss ranking (shorter = better)",
+    chartScatter:"Forecast vs actual", chartScatterSub:"Closer to the diagonal = better; above = over-forecast, below = under-forecast",
+    chartTime:"Daily error", chartTimeSub:"Above the zero line = too wet, below = too dry",
+    chartThin:"⚠ Few days yet — read these charts as provisional",
     biasWet:"too wet", biasDry:"too dry", biasNone:"no bias",
     missRain:"missed", falseAlarm:"false",
     missRainFull:"Model said dry, it rained (dangerous)", falseAlarmFull:"Model said rain, stayed dry (false alarm)",
@@ -516,6 +545,7 @@ const I18N = {
       { h:"\"Too few days / indicative / reliable\"", p:"The little tag at the top. Actual rain (ERA5) lags ~5 days, so early on there are very few scored days and the ranking jumps around. Under 8 days = too few; 8–19 = indicative; 20+ = reliable. Wait for \"reliable\" before drawing conclusions." },
       { h:"How to use it", p:"Tap ＋ (top right) to add an orchard (type coordinates or use GPS). Tap \"Models\" to choose which to compare. Each time you open the app it logs that day's forecast and back-fills the last 7 days. Records build up daily and are fullest after about a month." },
       { h:"Share your results", p:"On a scorecard, tap \"Share to WhatsApp\" — it includes each model's miss, bias, missed/false and reliability, with a preview before you send. Send your results back so everyone's orchards can be pooled together." },
+      { h:"Methodology (technical)", p:"Forecasts: Open-Meteo \"Previous Runs\" API, variable precipitation_previous_day1 — each model's 24-hour-ahead forecast for that day (lead time held constant at 24h). Hourly precip is summed to local-day totals on Asia/Kuching. Actuals: ERA5 reanalysis (archive-api), ~5-day lag. Note ERA5 is itself a model-assimilated gridded estimate, not a physical rain gauge, with known limitations for convective tropical rainfall. Wet-day threshold = 1.0 mm/day. Avg miss = MAE; bias = mean signed error; missed/false = the miss and false-alarm cells of the 2×2 contingency table. With small samples, differences may not be statistically significant — this app gives only a heuristic reliability tag, not a significance test. Use \"Export CSV\" to run your own analysis." },
     ],
   }
 };
@@ -802,6 +832,7 @@ function applyStaticText(){
     const loc=state.locations.find(l=>l.id===editingId);
     if(loc) $("#editingTag").textContent=t.editing(loc.name); }
   $("#t_data").textContent=t.data; $("#t_sync").textContent=t.sync;
+  const ex=$("#t_export"); if(ex) ex.textContent=t.exportCsv;
   $("#howNote").textContent=t.how;
   renderSyncStatus();
   document.documentElement.lang = LANG==="zh"?"zh":"en";
@@ -1006,6 +1037,59 @@ function buildShareText(loc, sc){
   return lines.join("\n");
 }
 
+/* ---------- CSV export (tidy / long format for R, Python, Excel) ----------
+   One row per (date × model): the raw paired data a statistician needs to run
+   their own verification — RMSE, POD/FAR, bootstrap CIs, whatever they prefer. */
+function buildCSV(loc, n){
+  const sc = scoreLocation(loc.id, n);
+  const models = MODELS();
+  const rows = [];
+  // header — documents lead time and ground truth so the file is self-describing
+  rows.push([
+    "location","latitude","longitude","date","model","model_api",
+    "forecast_mm","actual_mm","error_mm","forecast_wet","actual_wet","drywet_correct",
+    "lead_time","ground_truth"
+  ].join(","));
+  const LEAD = "24h (precipitation_previous_day1)";
+  const GT = "ERA5 reanalysis (archive-api)";
+  const esc = s => {
+    const v = String(s==null?"":s);
+    return /[",\n]/.test(v) ? `"${v.replace(/"/g,'""')}"` : v;
+  };
+  for(const r of sc.rows){
+    for(const m of models){
+      const f = r.vals[m.key];
+      if(f==null && r.actual==null) continue;
+      const a = r.actual;
+      const err = (f!=null && a!=null) ? Math.round((f-a)*10)/10 : "";
+      const fWet = f!=null ? (f>=DRY_THRESHOLD?1:0) : "";
+      const aWet = a!=null ? (a>=DRY_THRESHOLD?1:0) : "";
+      const correct = (f!=null && a!=null) ? ((fWet===aWet)?1:0) : "";
+      rows.push([
+        esc(loc.name), loc.lat, loc.lon, r.day, m.key, m.api,
+        f==null?"":f, a==null?"":a, err, fWet, aWet, correct,
+        esc(LEAD), esc(GT)
+      ].join(","));
+    }
+  }
+  return rows.join("\n");
+}
+function exportCSV(){
+  if(!activeLoc) return;
+  const loc = state.locations.find(l=>l.id===activeLoc);
+  if(!loc) return;
+  const csv = buildCSV(loc, range);
+  const stamp = todayYMD();
+  const safe = (loc.name||"location").replace(/[^\w\u4e00-\u9fff-]+/g,"_").slice(0,40);
+  const fname = `rainscore_${safe}_${range}d_${stamp}.csv`;
+  const blob = new Blob(["\ufeff"+csv], {type:"text/csv;charset=utf-8"}); // BOM for Excel/CJK
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = fname;
+  document.body.appendChild(a); a.click();
+  setTimeout(()=>{ document.body.removeChild(a); URL.revokeObjectURL(url); }, 1000);
+}
+
 /* Open a preview modal with the editable message. The farmer can tweak the text
    or add a personal note before sending — then Send opens WhatsApp / share sheet. */
 function shareVerdict(loc, sc){
@@ -1188,11 +1272,121 @@ function openModelPicker(){
     save();
     closeModelPicker();
     renderModelChips();
-    renderVerdict(); renderTable();
+    renderVerdict(); renderCharts(); renderTable();
     if(changed && activeLoc) doSync(true);   // pull data for any newly-added model
   });
 }
 function closeModelPicker(){ if(modelModalEl){ modelModalEl.remove(); modelModalEl=null; } }
+
+/* ---------- charts (lightweight inline SVG, no library) ---------- */
+function renderCharts(){
+  const mount=$("#chartsMount"); if(!mount) return;
+  const t=T();
+  if(!activeLoc){ mount.innerHTML=""; return; }
+  const sc=scoreLocation(activeLoc, range);
+  if(!sc.mae){ mount.innerHTML=""; return; }
+  const models=MODELS();
+  const cv=(m)=>getComputedStyle(document.documentElement).getPropertyValue(m.cssVar).trim()||"#5dd0c0";
+
+  // ---- Chart 1: MAE ranking bars (lower = better) ----
+  const maeVals = models.map(m=>({m, v:sc.mae[m.key]})).filter(x=>x.v!=null);
+  let barsChart="";
+  if(maeVals.length){
+    const maxV = Math.max(...maeVals.map(x=>x.v), 0.1);
+    const sorted = maeVals.slice().sort((a,b)=>a.v-b.v); // best first
+    const rowH=26, padL=64, padR=40, w=320, h=sorted.length*rowH+10;
+    let rows="";
+    sorted.forEach((x,i)=>{
+      const bw=(w-padL-padR)*(x.v/maxV);
+      const y=i*rowH+8;
+      rows+=`<text x="${padL-6}" y="${y+11}" text-anchor="end" font-size="11" fill="var(--ink)" font-weight="600">${modelLabel(x.m.key)}</text>
+        <rect x="${padL}" y="${y+2}" width="${Math.max(bw,2)}" height="13" rx="3" fill="${cv(x.m)}"/>
+        <text x="${padL+Math.max(bw,2)+5}" y="${y+11}" font-size="10.5" fill="var(--ink2)">${x.v}</text>`;
+    });
+    barsChart=`<div class="chart-block">
+      <div class="chart-h">${t.chartMae}</div>
+      <svg viewBox="0 0 ${w} ${h}" class="chartsvg">${rows}</svg>
+    </div>`;
+  }
+
+  // ---- Chart 2: forecast-vs-actual scatter, small multiples ----
+  // collect paired (forecast, actual) points per model from rows
+  const pts={}; models.forEach(m=>pts[m.key]=[]);
+  let gmax=1;
+  for(const r of sc.rows){
+    if(r.actual==null) continue;
+    for(const m of models){
+      const v=r.vals[m.key];
+      if(v==null) continue;
+      pts[m.key].push([v, r.actual]);
+      gmax=Math.max(gmax, v, r.actual);
+    }
+  }
+  gmax=Math.ceil(gmax/5)*5||5;
+  const cells = models.filter(m=>pts[m.key].length).map(m=>{
+    const s=110, pad=18;
+    const sx=v=>pad+(s-2*pad)*(v/gmax);
+    const sy=v=>s-pad-(s-2*pad)*(v/gmax); // invert y
+    const dots=pts[m.key].map(([f,a])=>`<circle cx="${sx(f).toFixed(1)}" cy="${sy(a).toFixed(1)}" r="2.6" fill="${cv(m)}" opacity="0.85"/>`).join("");
+    return `<div class="scatter-cell">
+      <div class="scatter-name" style="color:${cv(m)}">${modelLabel(m.key)}</div>
+      <svg viewBox="0 0 ${s} ${s}" class="scattersvg">
+        <line x1="${pad}" y1="${s-pad}" x2="${s-pad}" y2="${pad}" stroke="var(--line)" stroke-width="1" stroke-dasharray="3 3"/>
+        <line x1="${pad}" y1="${s-pad}" x2="${s-pad}" y2="${s-pad}" stroke="var(--line)" stroke-width="1"/>
+        <line x1="${pad}" y1="${s-pad}" x2="${pad}" y2="${pad}" stroke="var(--line)" stroke-width="1"/>
+        ${dots}
+      </svg>
+    </div>`;
+  }).join("");
+  const scatterChart = cells? `<div class="chart-block">
+      <div class="chart-h">${t.chartScatter}</div>
+      <div class="chart-sub">${t.chartScatterSub}</div>
+      <div class="scatter-grid">${cells}</div>
+    </div>` : "";
+
+  // ---- Chart 3: error-over-time grouped bars ----
+  const dayRows = sc.rows.filter(r=>r.actual!=null && models.some(m=>r.errs[m.key]!=null));
+  let timeChart="";
+  if(dayRows.length){
+    const maxAbs = Math.max(1, ...dayRows.flatMap(r=>models.map(m=>r.errs[m.key]!=null?Math.abs(r.errs[m.key]):0)));
+    const colW = Math.max(34, Math.min(60, Math.floor(560/dayRows.length)));
+    const w = dayRows.length*colW+50, h=150, mid=h/2, padB=22;
+    const barAreaH=(h-padB)/2-6;
+    const bw = Math.max(2, (colW-8)/models.length);
+    let groups="";
+    dayRows.forEach((r,di)=>{
+      const gx=40+di*colW;
+      models.forEach((m,mi)=>{
+        const e=r.errs[m.key];
+        if(e==null) return;
+        const bh=barAreaH*(Math.abs(e)/maxAbs);
+        const x=gx+mi*bw;
+        const y=e>=0? mid-bh : mid;
+        groups+=`<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${(bw-1).toFixed(1)}" height="${Math.max(bh,1).toFixed(1)}" fill="${cv(m)}" opacity="0.9"/>`;
+      });
+      groups+=`<text x="${gx+(colW-8)/2}" y="${h-7}" text-anchor="middle" font-size="9" fill="var(--ink2)">${shortDate(r.day)}</text>`;
+    });
+    timeChart=`<div class="chart-block">
+      <div class="chart-h">${t.chartTime}</div>
+      <div class="chart-sub">${t.chartTimeSub}</div>
+      <div class="chart-scroll-x"><svg viewBox="0 0 ${w} ${h}" class="timesvg" style="min-width:${w}px">
+        <line x1="36" y1="${mid}" x2="${w-6}" y2="${mid}" stroke="var(--line)" stroke-width="1"/>
+        <text x="32" y="${mid-3}" text-anchor="end" font-size="8" fill="var(--ink2)">+</text>
+        <text x="32" y="${mid+9}" text-anchor="end" font-size="8" fill="var(--ink2)">−</text>
+        ${groups}
+      </svg></div>
+    </div>`;
+  }
+
+  // confidence reminder so charts on thin data aren't over-read
+  const confNote = sc.cmpN<8 ? `<div class="chart-warn">${t.chartThin}</div>` : "";
+
+  mount.innerHTML = `<div class="card charts-card">
+    <div class="charts-title">${t.chartsTitle}</div>
+    ${confNote}
+    ${barsChart}${scatterChart}${timeChart}
+  </div>`;
+}
 function renderTable(){
   const mount=$("#tableMount"), t=T();
   if(!activeLoc){ mount.innerHTML=""; return; }
@@ -1254,7 +1448,7 @@ function renderTable(){
     </div>
   </div>`;
 }
-function renderAll(){ applyStaticText(); renderModelChips(); renderLocList(); renderVerdict(); renderTable(); }
+function renderAll(){ applyStaticText(); renderModelChips(); renderLocList(); renderVerdict(); renderCharts(); renderTable(); }
 
 /* ---------- actions ---------- */
 function esc(s){ return String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
@@ -1393,7 +1587,7 @@ async function doSync(force){
     await syncLocation(loc, range, null, force);
     const sc=scoreLocation(activeLoc, range);
     setSyncStatus({synced:sc.cmpN});
-    renderVerdict(); renderTable();
+    renderVerdict(); renderCharts(); renderTable();
   }catch(e){ setSyncStatus("syncErr"); }
 }
 function useGps(){
@@ -1417,11 +1611,12 @@ $("#btnCloseForm").addEventListener("click",closeForm);
 $("#btnCancelEdit").addEventListener("click",closeForm);
 $("#btnGps").addEventListener("click",useGps);
 $("#btnSync").addEventListener("click",()=>doSync(true));
+$("#btnExport").addEventListener("click",exportCSV);
 $("#rangeSeg").addEventListener("click",e=>{
   const b=e.target.closest("button"); if(!b) return;
   range=+b.dataset.r;
   [...$("#rangeSeg").children].forEach(x=>x.classList.toggle("on",x===b));
-  renderVerdict(); renderTable();
+  renderVerdict(); renderCharts(); renderTable();
 });
 
 /* ---------- boot: render, then log-on-open auto-sync of active location ---------- */
