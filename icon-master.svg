@@ -1,0 +1,33 @@
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#26374f"/>
+      <stop offset="1" stop-color="#0f1620"/>
+    </linearGradient>
+    <linearGradient id="drop" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#f0c069"/>
+      <stop offset="1" stop-color="#c0883a"/>
+    </linearGradient>
+    <filter id="soft" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="10" stdDeviation="16" flood-color="#000" flood-opacity="0.42"/>
+    </filter>
+  </defs>
+
+  <rect width="512" height="512" rx="115" fill="url(#bg)"/>
+
+  <!-- single large centred droplet -->
+  <g filter="url(#soft)">
+    <path d="M256 96
+             C256 96 360 232 360 326
+             a104 104 0 1 1 -208 0
+             C152 232 256 96 256 96 Z"
+          fill="url(#drop)"/>
+    <!-- highlight -->
+    <ellipse cx="222" cy="300" rx="22" ry="36" fill="#ffffff" opacity="0.32"/>
+  </g>
+
+  <!-- verdict check (the score) inside the droplet -->
+  <path d="M206 332 l34 34 l66 -78"
+        fill="none" stroke="#06121b" stroke-width="26"
+        stroke-linecap="round" stroke-linejoin="round" opacity="0.9"/>
+</svg>

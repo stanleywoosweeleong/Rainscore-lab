@@ -1,0 +1,20 @@
+{
+  "name": "RainScore · 雨准",
+  "short_name": "RainScore",
+  "description": "Compare rainfall forecasts (Best Match vs ECMWF) against actual rain per location.",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#0f1620",
+  "theme_color": "#1f2a37",
+  "orientation": "portrait",
+  "icons": [
+    { "src": "icon-120.png", "sizes": "120x120", "type": "image/png", "purpose": "any" },
+    { "src": "icon-152.png", "sizes": "152x152", "type": "image/png", "purpose": "any" },
+    { "src": "icon-167.png", "sizes": "167x167", "type": "image/png", "purpose": "any" },
+    { "src": "icon-180.png", "sizes": "180x180", "type": "image/png", "purpose": "any" },
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

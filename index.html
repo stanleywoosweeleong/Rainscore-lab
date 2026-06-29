@@ -1,0 +1,1285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#1f2a37">
+<title>RainScore Lab · 雨准实验</title>
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="apple-touch-icon" sizes="180x180" href="icon-180.png">
+<link rel="apple-touch-icon" sizes="167x167" href="icon-167.png">
+<link rel="apple-touch-icon" sizes="152x152" href="icon-152.png">
+<link rel="apple-touch-icon" sizes="120x120" href="icon-120.png">
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="favicon-16.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="RainScore">
+<style>
+:root{
+  --bg:#0f1620; --panel:#172230; --panel2:#1f2d3d; --ink:#e8eef5; --ink2:#9fb1c6;
+  --line:#2b3a4d; --rain:#4aa8d8; --bm:#5dd0c0; --ec:#e3a857; --win:#7bd88f;
+  --m1:#5dd0c0; --m2:#e3a857; --m3:#b48ee8; --m4:#6db3f0; --m5:#f08fb0; --m6:#9ad36b;
+  --bad:#e2715f; --warn:#e3b341; --shadow:rgba(0,0,0,.35);
+  --pad:16px;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;background:var(--bg);color:var(--ink);
+  font-family:"Segoe UI",system-ui,-apple-system,"Microsoft YaHei","PingFang SC",sans-serif;
+  font-size:16px;line-height:1.5}
+body{padding:env(safe-area-inset-top) 0 calc(env(safe-area-inset-bottom) + 8px)}
+.wrap{max-width:760px;margin:0 auto;padding:0 var(--pad)}
+header{display:flex;align-items:center;gap:10px;padding:14px var(--pad) 12px;
+  position:sticky;top:0;background:linear-gradient(180deg,var(--bg) 70%,transparent);z-index:20}
+.logo{display:flex;align-items:center;gap:9px;font-weight:700;letter-spacing:.5px}
+.logo .drop{font-size:26px;line-height:1}
+.brand-text{display:flex;flex-direction:column;line-height:1.15}
+.logo .name{font-size:19px}
+.logo .sub{font-size:11.5px;color:var(--ink2);font-weight:500;letter-spacing:.2px}
+.spacer{flex:1}
+.lang{background:var(--panel2);border:1px solid var(--line);color:var(--ink);
+  border-radius:999px;padding:6px 14px;font-size:13px;font-weight:600;cursor:pointer}
+.lang:active{transform:scale(.96)}
+/* blended secondary header buttons — transparent, muted, no competing fill */
+.ghost-lang{background:transparent;border:none;color:var(--ink2);font-weight:600;font-size:16px}
+.ghost-lang:hover{color:var(--ink)}
+.ghost-icon{background:transparent;border:none;color:var(--ink2);border-radius:999px;
+  width:34px;height:34px;font-size:19px;line-height:1;cursor:pointer;padding:0;
+  display:flex;align-items:center;justify-content:center;transition:color .12s,background .12s}
+.ghost-icon:hover{color:var(--ink);background:rgba(255,255,255,.05)}
+.ghost-icon:active{transform:scale(.92)}
+.add-btn{background:var(--rain);border:none;color:#06121b;border-radius:999px;
+  width:34px;height:34px;font-size:21px;font-weight:700;line-height:1;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;padding:0}
+.add-btn:active{transform:scale(.92)}
+.add-btn.on{background:var(--panel2);color:var(--ink);border:1px solid var(--line)}
+.form-panel{margin-top:12px;padding-top:14px;border-top:1px solid var(--line)}
+.form-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
+.form-head span{font-size:15px;font-weight:700}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;
+  padding:16px;margin:12px 0;box-shadow:0 1px 0 var(--shadow)}
+.card h2{margin:0 0 4px;font-size:14px;letter-spacing:.4px;color:var(--ink2);
+  text-transform:uppercase;font-weight:600}
+label.fld{display:block;font-size:13px;color:var(--ink2);margin:10px 0 4px}
+input,select{width:100%;background:var(--panel2);border:1px solid var(--line);
+  color:var(--ink);border-radius:9px;padding:11px 12px;font-size:15px;font-family:inherit}
+input:focus,select:focus{outline:2px solid var(--rain);outline-offset:0}
+.row{display:flex;gap:10px}
+.row>*{flex:1}
+.btn{display:block;width:100%;border:none;border-radius:10px;padding:13px;
+  font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;margin-top:12px}
+.btn:active{transform:scale(.985)}
+.btn-primary{background:var(--rain);color:#06121b}
+.btn-ghost{background:var(--panel2);color:var(--ink);border:1px solid var(--line)}
+.btn-mini{padding:7px 12px;font-size:13px;border-radius:8px;width:auto;margin:0}
+.loc-list{display:flex;flex-direction:column;gap:8px}
+.loc{display:flex;align-items:center;gap:10px;background:var(--panel2);
+  border:1px solid var(--line);border-radius:10px;padding:10px 12px;cursor:pointer}
+.loc.active{border-color:var(--rain);box-shadow:inset 0 0 0 1px var(--rain)}
+.loc .nm{font-weight:600;font-size:15px}
+.loc .co{font-size:12px;color:var(--ink2)}
+.loc .gap{margin-left:auto;font-size:11px;color:var(--warn)}
+.loc-actions{display:flex;gap:6px;margin-left:auto}
+.icon-btn{background:var(--panel);border:1px solid var(--line);color:var(--ink2);
+  border-radius:8px;padding:6px 9px;font-size:13px;cursor:pointer;font-family:inherit;line-height:1}
+.icon-btn:active{transform:scale(.92)}
+.icon-btn.del:hover{color:var(--bad);border-color:var(--bad)}
+.loc.deleted{opacity:.5}
+.loc.deleted .nm{text-decoration:line-through}
+.bin{margin-top:12px}
+.bin summary{color:var(--ink2);font-size:13px}
+.bin .loc{margin-top:8px}
+.purge-btn{background:rgba(226,113,95,.1);border:1px solid rgba(226,113,95,.35);
+  color:var(--bad);border-radius:8px;padding:8px 12px;font-size:12px;font-weight:600;
+  cursor:pointer;font-family:inherit;margin-top:8px;width:auto}
+.toast{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom) + 18px);
+  transform:translateX(-50%) translateY(20px);background:var(--panel2);
+  border:1px solid var(--line);color:var(--ink);padding:11px 16px;border-radius:10px;
+  font-size:13.5px;box-shadow:0 6px 24px var(--shadow);opacity:0;pointer-events:none;
+  transition:opacity .25s,transform .25s;z-index:50;max-width:90vw}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0);pointer-events:auto}
+.toast u{cursor:pointer;color:var(--rain);font-weight:700;margin-left:8px}
+.muted{color:var(--ink2);font-size:13px}
+.tiny{font-size:11.5px;color:var(--ink2)}
+
+/* verdict */
+.verdict{background:linear-gradient(135deg,#192634,#15202c);
+  border:1px solid var(--line);border-radius:16px;padding:18px 16px;margin:12px 0}
+.verdict .head{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}
+.verdict .head .loc-nm{font-size:17px;font-weight:700}
+.verdict .head .span{font-size:12px;color:var(--ink2)}
+.vs{display:grid;grid-template-columns:1fr auto 1fr;align-items:stretch;gap:10px}
+/* research build: flexible grid, up to 3 per row, wraps for 4-6 models */
+.vs3{display:grid;grid-template-columns:repeat(3,1fr);gap:7px}
+.basetag{font-size:9.5px;text-transform:uppercase;letter-spacing:.4px;color:var(--rain);
+  margin-top:2px;font-weight:600;min-height:13px}
+.baseline-rec{margin-top:12px;padding:10px 12px;border-radius:10px;
+  background:rgba(74,168,216,.1);border:1px solid rgba(74,168,216,.35);
+  font-size:13.5px;line-height:1.5;color:#bfe1f3}
+.baseline-rec b{font-weight:700}
+.m-slot1{color:var(--m1)} .m-slot2{color:var(--m2)} .m-slot3{color:var(--m3)}
+.m-slot4{color:var(--m4)} .m-slot5{color:var(--m5)} .m-slot6{color:var(--m6)}
+.verdict .line b[class^="m-slot"], .baseline-rec b[class^="m-slot"]{font-weight:700}
+.verdict .line b.m-slot1,.baseline-rec b.m-slot1{color:var(--m1)}
+.verdict .line b.m-slot2,.baseline-rec b.m-slot2{color:var(--m2)}
+.verdict .line b.m-slot3,.baseline-rec b.m-slot3{color:var(--m3)}
+.verdict .line b.m-slot4,.baseline-rec b.m-slot4{color:var(--m4)}
+.verdict .line b.m-slot5,.baseline-rec b.m-slot5{color:var(--m5)}
+.verdict .line b.m-slot6,.baseline-rec b.m-slot6{color:var(--m6)}
+.mcol{background:var(--panel2);border:1px solid var(--line);border-radius:12px;
+  padding:12px 6px;text-align:center;position:relative}
+.mcol.winner{border-color:var(--win);box-shadow:0 0 0 1px var(--win)}
+.mcol .mname{font-size:12.5px;font-weight:700;letter-spacing:.2px}
+.vs3 .mcol .mname{font-size:12px}
+.mcol .metric{margin-top:9px}
+.mcol .mlabel{font-size:9.5px;text-transform:uppercase;letter-spacing:.4px;color:var(--ink2)}
+.mcol .mval{font-size:22px;font-weight:800;line-height:1.1;margin-top:1px;
+  font-variant-numeric:tabular-nums}
+.vs3 .mcol .mval{font-size:19px}
+.mcol .munit{font-size:10.5px;color:var(--ink2)}
+.mcol .crown{position:absolute;top:-11px;left:50%;transform:translateX(-50%);
+  background:var(--win);color:#06121b;font-size:10px;font-weight:800;
+  padding:2px 8px;border-radius:999px;letter-spacing:.4px}
+.vmid{display:flex;align-items:center;justify-content:center;color:var(--ink2);
+  font-size:13px;font-weight:700}
+.verdict .line{margin-top:14px;padding-top:13px;border-top:1px solid var(--line);
+  font-size:14.5px;line-height:1.45}
+.verdict .line b.bm{color:var(--bm)} .verdict .line b.ec{color:var(--ec)}
+.dualnote{margin-top:10px;font-size:12px;color:var(--ink2);line-height:1.5}
+.share-btn{display:block;width:100%;margin-top:14px;border:none;border-radius:10px;
+  padding:12px;font-size:14.5px;font-weight:700;cursor:pointer;font-family:inherit;
+  background:#1faa5a;color:#fff}
+.share-btn:active{transform:scale(.985)}
+/* models selector bar in the DATA card */
+.models-bar{display:flex;align-items:center;gap:10px;width:100%;margin-top:10px;
+  background:var(--panel2);border:1px solid var(--line);border-radius:10px;
+  padding:10px 12px;cursor:pointer;font-family:inherit;text-align:left}
+.models-bar:active{transform:scale(.995)}
+.models-bar-label{font-size:12px;color:var(--ink2);text-transform:uppercase;letter-spacing:.5px;flex-shrink:0}
+.models-bar-chips{display:flex;gap:6px;flex-wrap:wrap;flex:1}
+.mchip{font-size:12px;font-weight:700;border:1.5px solid;border-radius:999px;padding:2px 9px}
+.models-bar-edit{color:var(--ink2);font-size:15px;flex-shrink:0}
+/* picker list */
+.mp-list{display:flex;flex-direction:column;gap:8px;margin:4px 0 10px}
+.mp-item{display:flex;align-items:center;gap:11px;width:100%;background:var(--panel2);
+  border:1px solid var(--line);border-radius:10px;padding:13px 14px;cursor:pointer;
+  font-family:inherit;font-size:15px;color:var(--ink);text-align:left}
+.mp-item.on{border-color:var(--rain);background:rgba(74,168,216,.1)}
+.mp-item:active{transform:scale(.99)}
+.mp-check{width:20px;height:20px;border-radius:6px;border:1.5px solid var(--line);
+  display:flex;align-items:center;justify-content:center;font-size:13px;color:#06121b;
+  background:transparent;flex-shrink:0}
+.mp-item.on .mp-check{background:var(--rain);border-color:var(--rain)}
+.mp-name{flex:1;font-weight:600}
+.mp-order{width:22px;height:22px;border-radius:999px;background:var(--rain);color:#06121b;
+  font-size:12px;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.mp-note{font-size:12.5px;color:var(--ink2);text-align:center;margin-bottom:4px;min-height:18px}
+.mp-note.warn{color:#e3a857}
+.modal-ov{position:fixed;inset:0;background:rgba(6,12,20,.72);z-index:60;
+  display:flex;align-items:flex-end;justify-content:center;padding:0;
+  animation:fadeIn .18s ease}
+@media(min-width:560px){ .modal-ov{align-items:center;padding:20px} }
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+.modal{background:var(--panel);border:1px solid var(--line);
+  border-radius:16px 16px 0 0;width:100%;max-width:560px;padding:16px;
+  box-shadow:0 -8px 40px var(--shadow);max-height:88vh;overflow:auto;
+  animation:slideUp .22s ease}
+@media(min-width:560px){ .modal{border-radius:16px} }
+@keyframes slideUp{from{transform:translateY(24px)}to{transform:translateY(0)}}
+.modal-head{display:flex;align-items:center;justify-content:space-between;
+  font-size:16px;font-weight:700;margin-bottom:6px}
+.modal-hint{font-size:13px;color:var(--ink2);margin-bottom:10px;line-height:1.5}
+.modal-ta{width:100%;background:var(--panel2);border:1px solid var(--line);
+  color:var(--ink);border-radius:10px;padding:12px;font-size:14px;line-height:1.55;
+  font-family:inherit;resize:vertical;min-height:200px;white-space:pre-wrap}
+.modal-ta:focus{outline:2px solid var(--rain);outline-offset:0}
+.modal-actions{display:flex;gap:10px;margin-top:12px}
+.modal-actions .btn{flex:1;margin-top:0}
+.guide-body{margin-top:4px}
+.qr-wrap{text-align:center;margin:4px 0 18px}
+.qr{width:200px;height:200px;border-radius:12px;background:#fff;padding:10px;box-sizing:border-box}
+.qr-cap{font-size:12.5px;color:var(--ink2);margin-top:8px}
+.guide-sec{margin-bottom:14px}
+.guide-h{font-size:14.5px;font-weight:700;color:var(--ink);margin-bottom:3px}
+.guide-p{font-size:13.5px;color:var(--ink2);line-height:1.6}
+.guide-links{display:flex;flex-direction:column;gap:8px;margin:16px 0 12px}
+.guide-link{display:block;text-align:center;text-decoration:none;background:var(--panel2);
+  border:1px solid var(--line);color:var(--rain);border-radius:10px;padding:11px;
+  font-size:14px;font-weight:600}
+.guide-link:active{transform:scale(.99)}
+.guide-foot{font-size:11.5px;color:var(--ink2);line-height:1.6;text-align:left;
+  border-top:1px solid var(--line);padding-top:12px;margin-top:4px}
+
+/* table */
+.tbl-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch;margin:0 -4px}
+table{width:100%;border-collapse:collapse;font-size:13px;font-variant-numeric:tabular-nums}
+th,td{padding:7px 8px;text-align:right;white-space:nowrap;border-bottom:1px solid var(--line)}
+th:first-child,td:first-child{text-align:left;position:sticky;left:0;background:var(--panel)}
+thead th{color:var(--ink2);font-weight:600;font-size:11.5px;text-transform:uppercase;
+  letter-spacing:.3px;border-bottom:1px solid var(--line)}
+tbody tr:last-child td{border-bottom:none}
+td.bm{color:var(--bm)} td.ec{color:var(--ec)} td.act{color:var(--rain);font-weight:600}
+td.pending{color:var(--ink2);font-style:italic}
+.dot{display:inline-block;width:7px;height:7px;border-radius:50%;margin-left:4px}
+.dot.hit{background:var(--win)} .dot.miss{background:var(--bad)}
+tfoot td{font-weight:700;border-top:2px solid var(--line);border-bottom:none;padding-top:9px}
+tfoot td.label{color:var(--ink2);font-weight:600;text-transform:uppercase;font-size:11px}
+
+.banner{border-radius:10px;padding:10px 12px;font-size:13px;margin:10px 0;line-height:1.5}
+.banner.warn{background:rgba(227,179,65,.12);border:1px solid rgba(227,179,65,.4);color:#f0d488}
+.banner.info{background:rgba(74,168,216,.1);border:1px solid rgba(74,168,216,.35);color:#a9d6ee}
+.banner.bad{background:rgba(226,113,95,.12);border:1px solid rgba(226,113,95,.4);color:#f0a99b}
+.status{font-size:12px;color:var(--ink2);margin-top:8px;min-height:16px}
+.empty{text-align:center;color:var(--ink2);padding:26px 10px;font-size:14px}
+.empty .big{font-size:30px;margin-bottom:8px}
+.seg{display:flex;background:var(--panel2);border:1px solid var(--line);
+  border-radius:9px;padding:3px;gap:3px;margin-top:6px}
+.seg button{flex:1;border:none;background:transparent;color:var(--ink2);
+  padding:9px 7px;border-radius:7px;font-size:13px;font-weight:600;cursor:pointer;
+  font-family:inherit;transition:background .12s,color .12s;letter-spacing:.3px}
+.seg button:not(.on):hover{color:var(--ink);background:rgba(255,255,255,.04)}
+.seg button.on{background:var(--rain);color:#06121b;font-weight:800;
+  box-shadow:0 0 0 1px var(--rain), 0 2px 8px rgba(74,168,216,.35)}
+details{margin-top:10px}
+summary{cursor:pointer;font-size:13px;color:var(--ink2);padding:4px 0}
+.legend{display:flex;flex-direction:column;gap:8px;font-size:11.5px;color:var(--ink2);margin-top:10px}
+.legend-row{display:flex;gap:14px;flex-wrap:wrap}
+.legend span{display:inline-flex;align-items:center;gap:5px}
+.sw{width:10px;height:10px;border-radius:3px;display:inline-block}
+hr.sep{border:none;border-top:1px solid var(--line);margin:14px 0}
+footer{text-align:center;padding:18px 10px 8px;font-size:11px;color:var(--ink2)}
+@media(max-width:420px){
+  .mcol .mval{font-size:22px}
+  body{font-size:15px}
+}
+</style>
+</head>
+<body>
+<header>
+  <div class="logo">
+    <span class="drop">🌧️</span>
+    <span class="brand-text">
+      <span class="name" id="brandName">RainScore</span>
+      <span class="sub" id="brandSub">forecast vs actual</span>
+    </span>
+  </div>
+  <div class="spacer"></div>
+  <button class="ghost-icon" id="btnHelp" title="Guide">ⓘ</button>
+  <button class="add-btn" id="btnOpenAdd" title="Add a location">＋</button>
+  <button class="lang ghost-lang" id="langBtn">中</button>
+</header>
+
+<div class="wrap">
+
+  <div id="toast" class="toast"></div>
+
+  <!-- LOCATIONS -->
+  <div class="card">
+    <h2 id="t_locations">Locations</h2>
+    <div class="loc-list" id="locList"></div>
+
+    <!-- add/edit form: hidden by default, opened from the header + button -->
+    <div id="formPanel" class="form-panel" style="display:none">
+      <div class="form-head">
+        <span id="formTitle">Add a location</span>
+        <button class="icon-btn" id="btnCloseForm" type="button" aria-label="Close">✕</button>
+      </div>
+      <div id="editingTag" class="banner info" style="display:none"></div>
+      <label class="fld" id="t_locname" for="inName">Name</label>
+      <input id="inName" placeholder="My Orchard">
+      <div class="row">
+        <div>
+          <label class="fld" id="t_lat" for="inLat">Latitude</label>
+          <input id="inLat" inputmode="decimal" placeholder="3.62">
+        </div>
+        <div>
+          <label class="fld" id="t_lon" for="inLon">Longitude</label>
+          <input id="inLon" inputmode="decimal" placeholder="102.07">
+        </div>
+      </div>
+      <button class="btn btn-ghost" id="btnGps" type="button">📍 <span id="t_gps">Use my GPS</span></button>
+      <button class="btn btn-primary" id="btnAdd" type="button">Save location</button>
+      <button class="btn btn-ghost" id="btnCancelEdit" type="button" style="display:none"></button>
+    </div>
+
+    <!-- recycle bin -->
+    <div id="binMount"></div>
+  </div>
+
+  <!-- DATA STATUS -->
+  <div class="card" id="syncCard" style="display:none">
+    <h2 id="t_data">Data</h2>
+    <div class="seg" id="rangeSeg">
+      <button data-r="7">7d</button>
+      <button data-r="14">14d</button>
+      <button data-r="30" class="on">30d</button>
+    </div>
+    <button class="models-bar" id="btnModels" type="button">
+      <span class="models-bar-label" id="t_modelsLabel">Models</span>
+      <span class="models-bar-chips" id="modelsChips"></span>
+      <span class="models-bar-edit">✎</span>
+    </button>
+    <button class="btn btn-primary" id="btnSync" type="button">🔄 <span id="t_sync">Update records</span></button>
+    <div class="status" id="syncStatus"></div>
+    <div class="banner info" id="howNote" style="margin-top:12px"></div>
+  </div>
+
+  <!-- VERDICT -->
+  <div id="verdictMount"></div>
+
+  <!-- TABLE -->
+  <div id="tableMount"></div>
+</div>
+
+<script>
+/* ============ RainScore — forecast-vs-actual rainfall scorecard ============
+   Conventions: single-file PWA, localStorage, Asia/Kuching, no fabricated data.
+   Forecast source: Previous Runs API (precipitation_previous_day1 = what was
+   forecast 24h before the day). Actual source: ERA5 archive precipitation_sum. */
+
+const TZ = "Asia/Kuching";
+const STORE_KEY = "rainscore_lab_v1";
+const CACHE_TAG = "rainscore-lab-20260627-01";
+const DRY_THRESHOLD = 1.0;   // mm — <1mm counts as a "dry day" (field-adjustable)
+const PREV_HOST = "https://previous-runs-api.open-meteo.com/v1/forecast";
+const ARCH_HOST = "https://archive-api.open-meteo.com/v1/archive";
+
+/* The full pool of models the user can choose from. Each entry: `key` (stored
+   data key, never reused), `api` (Open-Meteo model id), `cssVar` (display colour),
+   `short` (table abbreviation). To add a model to the pool, add a line here plus
+   its `models:{}` label in both languages. Only GLOBAL models that cover Malaysia
+   and carry reliable archived precipitation are included. */
+const MODEL_POOL = [
+  { key:"ifs",  api:"ecmwf_ifs",          cssVar:"--m1", short:"IFS"  },
+  { key:"icon", api:"icon_seamless",      cssVar:"--m2", short:"ICON" },
+  { key:"jma",  api:"jma_gsm",            cssVar:"--m3", short:"JMA"  },
+  { key:"cma",  api:"cma_grapes_global",  cssVar:"--m1", short:"CMA"  },
+  { key:"gem",  api:"gem_global",         cssVar:"--m2", short:"GEM"  },
+  { key:"gfs",  api:"gfs_seamless",       cssVar:"--m3", short:"GFS"  },
+];
+const DEFAULT_SELECTION = ["ifs","icon","jma","cma","gem","gfs"];  // research: all six active
+const MAX_ACTIVE = 6;   // research build: up to 6 models at once
+const MIN_ACTIVE = 1;   // need at least 1 to compare
+
+/* Six distinct colours assigned to active models by display position. */
+const SLOT_VARS = ["--m1","--m2","--m3","--m4","--m5","--m6"];
+
+function poolModel(key){ return MODEL_POOL.find(m=>m.key===key); }
+
+/* The active models for the current selection, in display order, each given a
+   distinct slot colour. This replaces the old fixed MODELS array — sync, scoring,
+   verdict and table all loop over MODELS(). */
+function MODELS(){
+  const sel = (state && state.selection && state.selection.length) ? state.selection : DEFAULT_SELECTION;
+  return sel.map((key,i)=>{
+    const m = poolModel(key);
+    return m ? { ...m, cssVar: SLOT_VARS[i] } : null;
+  }).filter(Boolean);
+}
+
+/* ---------- i18n (one-tap toggle, zh structural base) ---------- */
+const I18N = {
+  zh:{
+    brandName:"雨准 Lab", brandSub:"预报对比实际",
+    locations:"地点", addloc:"+ 新增地点", locname:"名称", lat:"纬度", lon:"经度", namePh:"我的果园",
+    gps:"使用我的 GPS", save:"保存地点", data:"数据", sync:"更新记录",
+    foot:"预报：ECMWF IFS 9km · DWD ICON · JMA GSM · 实际：ERA5 再分析 · CC BY 4.0",
+    langBtn:"中",
+    emptyLoc:"点右上角 ＋ 新增第一个果园地点", emptyLocBig:"📍",
+    pickLoc:"选择上方地点查看记分", noData:"尚无记录，点「更新记录」",
+    how:"每次打开会记录各模型对「今天」的雨量预报，并用最近 7 天的存档自动补回遗漏的日子。实际雨量用 ERA5 再分析回填（约延迟 5 天）。",
+    mae:"平均误差", maeUnit:"毫米/天", hit:"晴雨命中", hitUnit:"准确率",
+    days:"天", winner:"最准", tie:"打平", baseline:"目前预报模式",
+    bestAmt:(w)=>`雨量上，<b class="${w.cls}">${w.name}</b> 这个月最接近实际。`,
+    bestHit:(w)=>`判断「有雨／无雨」上，<b class="${w.cls}">${w.name}</b> 命中最高。`,
+    tieAmt:"雨量上各模型不相上下。",
+    tieHit:"晴雨判断上各模型不相上下。",
+    betterThanBase:(w)=>`👉 此地点 <b class="${w.cls}">${w.name}</b> 比目前天气预报用的模式 ECMWF IFS 9km 更准 — 可考虑为此农户改用。`,
+    baseIsBest:"目前天气预报用的模式 ECMWF IFS 9km 在此地点已是最准 — 无需更换。",
+    dualnote:"两个分数回答不同问题：平均误差＝雨量信得过多少；晴雨命中＝它说「无雨」时信得过多少。",
+    colDate:"日期", colAct:"实际",
+    pending:"待回填", legendHit:"晴雨判对", legendMiss:"晴雨判错",
+    models:{ ifs:"IFS 9km", icon:"ICON", jma:"JMA", cma:"CMA", gem:"GEM", gfs:"GFS" },
+    syncing:"更新中…", synced:(n)=>`已更新 · ${n} 天有实际数据`,
+    syncErr:"更新失败，请检查网络", gpsErr:"无法取得定位", gpsOk:"已带入坐标",
+    needName:"请填写名称与坐标", confirmDel:"删除此地点及其记录？",
+    cache:`缓存 ${CACHE_TAG}`, del:"删除",
+    daysWithActual:(n)=>`${n} 天有实际雨量可比对`,
+    edit:"编辑", restore:"恢复", save:"保存地点", update:"更新地点",
+    cancel:"取消编辑", editing:(n)=>`正在编辑：${n}`,
+    addloc2:"+ 新增地点",
+    bin:(n)=>`回收站（${n}）`, purge:"永久清空回收站",
+    confirmPurge:"永久删除回收站内所有地点及其记录？此操作不可撤销。",
+    softDeleted:"已删除", undo:"撤销", restored:"已恢复 ✓", purged:"回收站已清空",
+    keptHist:"记录已保留，可随时恢复",
+    keptNear:(m)=>`位置微调 ${m} 米（同一网格）· 记录已保留`,
+    shareWA:"📤 分享到 WhatsApp", copied:"已复制到剪贴板 ✓", shareFail:"分享失败",
+    modelsLabel:"模式", pickTitle:"选择对比模式", pickHint:"选 1 到 6 个模式来对比（点选／取消，数字是显示顺序）。换模式后，新模式只会从最近 7 天开始有数据，往后逐日累积。",
+    pickAtLeast:(n)=>`至少选 ${n} 个模式`, pickReadyN:(n)=>`已选 ${n} 个 · 可以保存 ✓`,
+    pickFull:(n)=>`最多选 ${n} 个 — 先取消一个`,
+    cancel:"取消", save:"保存",
+    previewTitle:"预览讯息", previewHint:"可在发送前修改或加上你的话：",
+    copyBtn:"复制", sendWA:"发送到 WhatsApp",
+    guideTitle:"使用指南", guideScan:"扫码打开 / 分享此 App",
+    guideAppLink:"打开 App 网址", guideRepo:"GitHub 源代码",
+    guideFoot:"数据来源：Open-Meteo（CC BY 4.0）· 预报模式 ECMWF IFS 9km、DWD ICON、JMA GSM<br>实际雨量 ERA5 再分析",
+    guideSections:[
+      { h:"这个 App 做什么？", p:"对比三个天气模式对每天雨量的预报，跟实际雨量（ERA5）比较，找出哪个模式在你的果园最准。目的是帮那些觉得目前预报不准的农户，看看换个模式会不会更好。" },
+      { h:"三个模式", p:"ECMWF IFS 9km＝目前天气预报用的模式（基准）。另外两个候选：DWD ICON（德国，11公里）和 JMA GSM（日本，擅长热带亚洲）。卡片会标出最准的一个，若候选比 IFS 更准，会建议为该农户改用。" },
+      { h:"两个分数", p:"「平均误差」＝雨量数字差多少（毫米/天，越小越准）。「晴雨命中」＝判断「有雨／无雨」对的比率（越高越准）。两者回答不同问题：一个看雨量，一个看会不会下雨。" },
+      { h:"7天 / 14天 / 30天", p:"切换比较的时间范围。30天看整月表现，7天看最近一周。注意：实际雨量（ERA5）约延迟5天，所以7天范围能比对的天数很少，结果会跳动，30天最可靠。" },
+      { h:"怎么用", p:"点右上角 ＋ 新增果园（输入坐标或用 GPS）。每天打开 App 会自动记录当天预报，并用最近7天存档补回遗漏。记录会一天天累积，约一个月后 30天范围最完整。" },
+      { h:"分享给农户", p:"在记分卡点「分享到 WhatsApp」，可预览并加上你的话，再发送。让农户看到自己果园的模式比较。" },
+    ],
+  },
+  en:{
+    brandName:"RainScore Lab", brandSub:"forecast vs actual",
+    locations:"Locations", addloc:"+ Add a location", locname:"Name", lat:"Latitude", lon:"Longitude", namePh:"My Orchard",
+    gps:"Use my GPS", save:"Save location", data:"Data", sync:"Update records",
+    foot:"Forecasts: ECMWF IFS 9km · DWD ICON · JMA GSM · Actual: ERA5 reanalysis · CC BY 4.0",
+    langBtn:"EN",
+    emptyLoc:"Tap ＋ (top right) to add your first orchard", emptyLocBig:"📍",
+    pickLoc:"Pick a location above to see its scorecard", noData:"No records yet — tap Update records",
+    how:"Each time you open the app it logs what every model forecast for today, and back-fills any missed days from the last 7 days of archive. Actual rain is filled from ERA5 reanalysis (about 5 days behind).",
+    mae:"Avg miss", maeUnit:"mm/day", hit:"Dry/wet calls", hitUnit:"correct",
+    days:"days", winner:"best", tie:"tie", baseline:"broadcast now",
+    bestAmt:(w)=>`On rain amount, <b class="${w.cls}">${w.name}</b> was closest this month.`,
+    bestHit:(w)=>`On calling rain vs dry, <b class="${w.cls}">${w.name}</b> got the most right.`,
+    tieAmt:"On rain amount, the models were level this month.",
+    tieHit:"On dry/wet calls, the models were level.",
+    betterThanBase:(w)=>`👉 At this spot <b class="${w.cls}">${w.name}</b> beats the IFS 9km you broadcast now — worth switching this farmer.`,
+    baseIsBest:"The IFS 9km you broadcast now is already best here — no change needed.",
+    dualnote:"The two scores answer different questions: Avg miss = how much to trust the amount; Dry/wet calls = how much to trust it when it says “dry”.",
+    colDate:"Date", colAct:"Actual",
+    pending:"pending", legendHit:"dry/wet right", legendMiss:"dry/wet wrong",
+    models:{ ifs:"IFS 9km", icon:"ICON", jma:"JMA", cma:"CMA", gem:"GEM", gfs:"GFS" },
+    syncing:"Updating…", synced:(n)=>`Updated · ${n} days with actuals`,
+    syncErr:"Update failed — check connection", gpsErr:"Couldn't get location", gpsOk:"Coordinates filled",
+    needName:"Enter a name and coordinates", confirmDel:"Delete this location and its records?",
+    cache:`Cache ${CACHE_TAG}`, del:"Delete",
+    daysWithActual:(n)=>`${n} days have actual rain to compare`,
+    edit:"Edit", restore:"Restore", save:"Save location", update:"Update location",
+    cancel:"Cancel edit", editing:(n)=>`Editing: ${n}`,
+    addloc2:"+ Add a location",
+    bin:(n)=>`Recycle bin (${n})`, purge:"Empty recycle bin permanently",
+    confirmPurge:"Permanently delete all locations in the bin and their records? This cannot be undone.",
+    softDeleted:"Deleted", undo:"Undo", restored:"Restored ✓", purged:"Recycle bin emptied",
+    keptHist:"Records kept — restore anytime",
+    keptNear:(m)=>`Moved ${m} m (same grid cell) · records kept`,
+    shareWA:"📤 Share to WhatsApp", copied:"Copied to clipboard ✓", shareFail:"Share failed",
+    modelsLabel:"Models", pickTitle:"Choose models to compare", pickHint:"Pick 1 to 6 models to compare (tap to select/deselect; the number is display order). After switching, a new model only has data from the last 7 days and builds up daily from there.",
+    pickAtLeast:(n)=>`Pick at least ${n} model`, pickReadyN:(n)=>`${n} selected · ready to save ✓`,
+    pickFull:(n)=>`Up to ${n} — deselect one first`,
+    cancel:"Cancel", save:"Save",
+    previewTitle:"Preview message", previewHint:"Edit or add your own note before sending:",
+    copyBtn:"Copy", sendWA:"Send to WhatsApp",
+    guideTitle:"Guide", guideScan:"Scan to open / share this app",
+    guideAppLink:"Open app URL", guideRepo:"GitHub source code",
+    guideFoot:"Data: Open-Meteo (CC BY 4.0) · Models ECMWF IFS 9km, DWD ICON, JMA GSM<br>Actual rain ERA5 reanalysis",
+    guideSections:[
+      { h:"What this app does", p:"It compares three weather models' daily rain forecasts against the actual rainfall (ERA5), to find which model is most accurate at your orchard. The goal is to help farmers unhappy with the current forecast see whether a different model would serve them better." },
+      { h:"The three models", p:"ECMWF IFS 9km = the model your forecast uses now (baseline). Two candidates: DWD ICON (Germany, 11km) and JMA GSM (Japan, strong for tropical Asia). The card crowns the most accurate, and if a candidate beats IFS it suggests switching that farmer." },
+      { h:"The two scores", p:"\"Avg miss\" = how far off the rain amount was (mm/day, lower is better). \"Dry/wet calls\" = how often it correctly called rain vs dry (higher is better). They answer different questions: one is about amount, one about whether it rains at all." },
+      { h:"7d / 14d / 30d", p:"Switch the comparison window. 30d shows the whole month; 7d shows the last week. Note: actual rain (ERA5) lags ~5 days, so the 7-day window has very few scored days and swings a lot — 30d is the most reliable." },
+      { h:"How to use it", p:"Tap ＋ (top right) to add an orchard (type coordinates or use GPS). Each time you open the app it logs that day's forecast and back-fills the last 7 days from the archive. Records build up daily; the 30-day window is fullest after about a month." },
+      { h:"Share with a farmer", p:"On a scorecard, tap \"Share to WhatsApp\" — you can preview, add your own note, then send. It lets a farmer see the model comparison for their own orchard." },
+    ],
+  }
+};
+let LANG = localStorage.getItem("rainscore_lang") || "zh";
+const T = ()=>I18N[LANG];
+
+/* ---------- state ---------- */
+let state = load();
+let activeLoc = (state.locations.find(l=>!l.deleted)||{}).id || null;
+let range = 30;
+
+function load(){
+  try{ const s = JSON.parse(localStorage.getItem(STORE_KEY)); if(s&&s.locations){
+    if(!Array.isArray(s.selection) || s.selection.length===0) s.selection = DEFAULT_SELECTION.slice();
+    return s;
+  } }catch(e){}
+  return { locations:[], records:{}, selection:DEFAULT_SELECTION.slice() };
+}
+function save(){ localStorage.setItem(STORE_KEY, JSON.stringify(state)); }
+
+/* ---------- date helpers (local Asia/Kuching calendar days) ---------- */
+function ymd(d){ // format a Date as YYYY-MM-DD in TZ
+  return new Intl.DateTimeFormat("en-CA",{timeZone:TZ,year:"numeric",month:"2-digit",day:"2-digit"}).format(d);
+}
+function todayYMD(){ return ymd(new Date()); }
+function daysAgoYMD(n){ const d=new Date(); d.setDate(d.getDate()-n); return ymd(d); }
+function dateRange(n){ const out=[]; for(let i=n-1;i>=0;i--) out.push(daysAgoYMD(i)); return out; }
+function shortDate(s){ const [y,m,d]=s.split("-"); return `${+m}/${+d}`; }
+
+/* Distance between two GPS points in metres (haversine).
+   Used to decide whether a coordinate edit keeps the comparison history:
+   within MOVE_KEEP_M the points share the same weather grid cell, so the
+   forecast/actual records remain valid. */
+const MOVE_KEEP_M = 1000; // 1 km
+function distM(lat1, lon1, lat2, lon2){
+  const R = 6371000, rad = Math.PI/180;
+  const dLat=(lat2-lat1)*rad, dLon=(lon2-lon1)*rad;
+  const a = Math.sin(dLat/2)**2 +
+            Math.cos(lat1*rad)*Math.cos(lat2*rad)*Math.sin(dLon/2)**2;
+  return 2*R*Math.asin(Math.min(1,Math.sqrt(a)));
+}
+
+/* ---------- API: fetch with gentle retry (Open-Meteo 503 throttle aware) ---------- */
+async function fetchJSON(url, tries=3){
+  let lastErr;
+  for(let i=0;i<tries;i++){
+    try{
+      const r = await fetch(url);
+      if(r.status===503){ await sleep(2500+Math.random()*1800); continue; }
+      if(!r.ok) throw new Error("HTTP "+r.status);
+      return await r.json();
+    }catch(e){ lastErr=e; await sleep(900+Math.random()*900); }
+  }
+  throw lastErr || new Error("fetch failed");
+}
+const sleep = ms => new Promise(r=>setTimeout(r,ms));
+
+/* Sum hourly precipitation into per-local-day totals.
+   The Previous Runs API returns hourly arrays; we bucket by local date. */
+function bucketHourly(times, values){
+  const out = {};
+  if(!times||!values) return out;
+  for(let i=0;i<times.length;i++){
+    const day = times[i].slice(0,10); // API already returns local time when timezone set
+    const v = values[i];
+    if(v==null) continue;
+    out[day] = (out[day]||0) + v;
+  }
+  // round to 1 dp
+  for(const k in out) out[k] = Math.round(out[k]*10)/10;
+  return out;
+}
+
+/* Pull the "as-forecast 1 day ahead" daily totals for one model.
+   day1 offset = what was predicted 24h before that day — the honest forecast. */
+async function fetchForecastDaily(lat, lon, model, pastDays){
+  const params = new URLSearchParams({
+    latitude:lat, longitude:lon, timezone:TZ,
+    past_days:String(Math.min(pastDays,7)), forecast_days:"1",
+    hourly:"precipitation_previous_day1"
+  });
+  if(model) params.set("models", model);
+  const j = await fetchJSON(`${PREV_HOST}?${params}`);
+  return bucketHourly(j.hourly?.time, j.hourly?.precipitation_previous_day1);
+}
+
+/* Actual daily rain from ERA5 archive (precipitation_sum already daily). */
+async function fetchActualDaily(lat, lon, startYMD, endYMD){
+  const params = new URLSearchParams({
+    latitude:lat, longitude:lon, timezone:TZ,
+    start_date:startYMD, end_date:endYMD,
+    daily:"precipitation_sum"
+  });
+  const j = await fetchJSON(`${ARCH_HOST}?${params}`);
+  const out={}; const t=j.daily?.time||[], p=j.daily?.precipitation_sum||[];
+  for(let i=0;i<t.length;i++) if(p[i]!=null) out[t[i]] = Math.round(p[i]*10)/10;
+  return out;
+}
+
+/* ---------- the sync routine: log-on-open + 7-day gap-fill + ERA5 actuals ---------- */
+async function syncLocation(loc, pastDays, onStep){
+  const recs = state.records[loc.id] || (state.records[loc.id]={});
+  // 1) Forecasts: recover last min(pastDays,7) days from Previous Runs for every model.
+  onStep && onStep("forecast");
+  const models = MODELS();
+  const results = await Promise.all(
+    models.map(m => fetchForecastDaily(loc.lat, loc.lon, m.api, pastDays)
+                      .catch(()=>({})))   // a model that fails just stays blank, others proceed
+  );
+  results.forEach((daily, i) => {
+    const key = models[i].key;
+    for(const day in daily){
+      recs[day] = recs[day] || {};
+      if(recs[day][key]==null) recs[day][key] = daily[day];  // first capture wins (honest record)
+    }
+  });
+
+  // 2) Actuals: ERA5 over the whole requested window (safe to refresh; truth doesn't change)
+  onStep && onStep("actual");
+  const start = daysAgoYMD(pastDays-1), end = todayYMD();
+  try{
+    const act = await fetchActualDaily(loc.lat, loc.lon, start, end);
+    for(const day in act){ recs[day]=recs[day]||{}; recs[day].actual=act[day]; }
+  }catch(e){ /* ERA5 lag: recent days simply stay pending */ }
+
+  save();
+}
+
+/* ---------- scoring ---------- */
+function scoreLocation(locId, n){
+  const recs = state.records[locId]||{};
+  const days = dateRange(n);
+  const rows=[];
+  const models = MODELS();
+  // per-model accumulators
+  const acc = {}; models.forEach(m=>acc[m.key]={absSum:0, maeN:0, hits:0, hitN:0});
+  let anyCmp = 0;  // days where actual exists AND at least one model has a value
+
+  for(const day of days){
+    const r = recs[day]||{};
+    const row = { day, actual:r.actual, vals:{}, errs:{}, hits:{} };
+    let rowHasModel = false;
+    for(const m of models){
+      const v = r[m.key];
+      row.vals[m.key] = v;
+      if(v!=null) rowHasModel = true;
+      if(r.actual!=null && v!=null){
+        const err = Math.round((v - r.actual)*10)/10;
+        row.errs[m.key] = err;
+        acc[m.key].absSum += Math.abs(v - r.actual); acc[m.key].maeN++;
+        const hit = (v>=DRY_THRESHOLD) === (r.actual>=DRY_THRESHOLD);
+        row.hits[m.key] = hit;
+        acc[m.key].hitN++; if(hit) acc[m.key].hits++;
+      }
+    }
+    if(r.actual!=null && rowHasModel) anyCmp++;
+    if(rowHasModel || r.actual!=null) rows.push(row);
+  }
+
+  // build per-model MAE / hit% (null if that model has no comparable days)
+  const mae={}, hit={}; let haveMae=false, haveHit=false;
+  for(const m of models){
+    const a=acc[m.key];
+    if(a.maeN){ mae[m.key]=Math.round(a.absSum/a.maeN*10)/10; haveMae=true; } else mae[m.key]=null;
+    if(a.hitN){ hit[m.key]=Math.round(a.hits/a.hitN*100); haveHit=true; } else hit[m.key]=null;
+  }
+  return {
+    rows,
+    mae: haveMae? mae : null,
+    hit: haveHit? hit : null,
+    cmpN: anyCmp
+  };
+}
+
+/* pick the model key with the lowest MAE (amount) or highest hit% (dry/wet).
+   Returns {key, tie} — tie true when the top two are equal. */
+function bestByMae(mae){
+  const entries = MODELS().map(m=>[m.key, mae[m.key]]).filter(([k,v])=>v!=null);
+  if(!entries.length) return null;
+  entries.sort((a,b)=>a[1]-b[1]);
+  const tie = entries.length>1 && entries[0][1]===entries[1][1];
+  return { key:entries[0][0], tie, value:entries[0][1] };
+}
+function bestByHit(hit){
+  const entries = MODELS().map(m=>[m.key, hit[m.key]]).filter(([k,v])=>v!=null);
+  if(!entries.length) return null;
+  entries.sort((a,b)=>b[1]-a[1]);
+  const tie = entries.length>1 && entries[0][1]===entries[1][1];
+  return { key:entries[0][0], tie, value:entries[0][1] };
+}
+function modelLabel(key){ return T().models[key] || key; }
+function modelCss(key){ const m=MODELS().find(x=>x.key===key); return m?m.cssVar:"--m1"; }
+
+/* ---------- rendering ---------- */
+const $ = s=>document.querySelector(s);
+function applyStaticText(){
+  const t=T();
+  $("#brandName").textContent=t.brandName; $("#brandSub").textContent=t.brandSub;
+  $("#langBtn").textContent=t.langBtn;
+  $("#t_locations").textContent=t.locations;
+  $("#formTitle").textContent = editingId? t.update : t.addloc2.replace(/^\+\s*/,"");
+  $("#btnOpenAdd").title = t.addloc2.replace(/^\+\s*/,"");
+  $("#t_locname").textContent=t.locname; $("#t_lat").textContent=t.lat; $("#t_lon").textContent=t.lon;
+  $("#inName").placeholder=t.namePh;
+  $("#t_gps").textContent=t.gps;
+  $("#btnAdd").textContent = editingId? t.update : t.save;
+  if(editingId){ $("#btnCancelEdit").textContent=t.cancel;
+    const loc=state.locations.find(l=>l.id===editingId);
+    if(loc) $("#editingTag").textContent=t.editing(loc.name); }
+  $("#t_data").textContent=t.data; $("#t_sync").textContent=t.sync;
+  $("#howNote").textContent=t.how;
+  renderSyncStatus();
+  document.documentElement.lang = LANG==="zh"?"zh":"en";
+}
+function activeLocs(){ return state.locations.filter(l=>!l.deleted); }
+function deletedLocs(){ return state.locations.filter(l=>l.deleted); }
+
+function renderLocList(){
+  const t=T(), box=$("#locList");
+  const live = activeLocs();
+  if(!live.length){
+    box.innerHTML=`<div class="empty"><div class="big">${t.emptyLocBig}</div>${t.emptyLoc}</div>`;
+    $("#syncCard").style.display = deletedLocs().length?"block":"none";
+    if(!live.length && !deletedLocs().length) $("#syncCard").style.display="none";
+  } else {
+    $("#syncCard").style.display="block";
+    box.innerHTML="";
+    for(const loc of live){
+      const el=document.createElement("div");
+      el.className="loc"+(loc.id===activeLoc?" active":"");
+      el.innerHTML=`<div><div class="nm">${esc(loc.name)}</div>
+        <div class="co">${(+loc.lat).toFixed(4)}, ${(+loc.lon).toFixed(4)}</div></div>
+        <div class="loc-actions">
+          <button class="icon-btn" data-edit="${loc.id}" title="${t.edit}">✎</button>
+          <button class="icon-btn del" data-del="${loc.id}" title="${t.del}">🗑</button>
+        </div>`;
+      el.addEventListener("click",e=>{
+        if(e.target.dataset.edit!=null){ startEdit(loc.id); return; }
+        if(e.target.dataset.del!=null){ softDelLoc(loc.id); return; }
+        activeLoc=loc.id; renderAll();
+      });
+      box.appendChild(el);
+    }
+  }
+  renderBin();
+}
+
+function renderBin(){
+  const t=T(), mount=$("#binMount");
+  const gone = deletedLocs();
+  if(!gone.length){ mount.innerHTML=""; return; }
+  let items="";
+  for(const loc of gone){
+    items+=`<div class="loc deleted">
+      <div><div class="nm">${esc(loc.name)}</div>
+        <div class="co">${(+loc.lat).toFixed(4)}, ${(+loc.lon).toFixed(4)}</div></div>
+      <div class="loc-actions">
+        <button class="icon-btn" data-restore="${loc.id}">↩ ${t.restore}</button>
+      </div></div>`;
+  }
+  mount.innerHTML=`<details class="bin">
+    <summary>${t.bin(gone.length)}</summary>
+    <div class="loc-list" style="margin-top:8px">${items}</div>
+    <button class="purge-btn" id="btnPurge" type="button">🗑 ${t.purge}</button>
+  </details>`;
+  mount.querySelectorAll("[data-restore]").forEach(b=>
+    b.addEventListener("click",()=>restoreLoc(b.dataset.restore)));
+  $("#btnPurge").addEventListener("click",purgeBin);
+}
+function renderVerdict(){
+  const mount=$("#verdictMount"), t=T();
+  if(!activeLoc){ mount.innerHTML=`<div class="card"><div class="empty">${t.pickLoc}</div></div>`; return; }
+  const loc=state.locations.find(l=>l.id===activeLoc);
+  const sc=scoreLocation(activeLoc, range);
+  if(!sc.mae){ mount.innerHTML=`<div class="card"><div class="empty">${t.noData}</div></div>`; return; }
+
+  const winMae = bestByMae(sc.mae);
+  const winHit = sc.hit? bestByHit(sc.hit) : null;
+
+  // model columns
+  let cols="";
+  for(const m of MODELS()){
+    const isBaseline = m.key==="ifs";
+    const maeWin = winMae && winMae.key===m.key && !winMae.tie;
+    const maeVal = sc.mae[m.key]==null? "—" : sc.mae[m.key];
+    const hitVal = (sc.hit && sc.hit[m.key]!=null)? sc.hit[m.key] : null;
+    cols += `
+      <div class="mcol ${maeWin?'winner':''}" style="--mc:var(${m.cssVar})">
+        ${maeWin?`<div class="crown">${t.winner}</div>`:''}
+        <div class="mname" style="color:var(${m.cssVar})">${modelLabel(m.key)}</div>
+        ${isBaseline?`<div class="basetag">${t.baseline}</div>`:'<div class="basetag">&nbsp;</div>'}
+        <div class="metric"><div class="mlabel">${t.mae}</div>
+          <div class="mval">${maeVal}<span class="munit"> ${t.maeUnit}</span></div></div>
+        ${hitVal!=null?`<div class="metric"><div class="mlabel">${t.hit}</div>
+          <div class="mval">${hitVal}<span class="munit">%</span></div></div>`:''}
+      </div>`;
+  }
+
+  // verdict lines
+  const W=(key)=>({name:modelLabel(key), cls:cssClassFor(key)});
+  const amtLine = winMae.tie? t.tieAmt : t.bestAmt(W(winMae.key));
+  const hitLine = !winHit? "" : (winHit.tie? t.tieHit : t.bestHit(W(winHit.key)));
+
+  // baseline recommendation: does a non-IFS model beat IFS on amount?
+  let baseLine = "";
+  if(winMae && !winMae.tie){
+    if(winMae.key==="ifs") baseLine = t.baseIsBest;
+    else baseLine = t.betterThanBase(W(winMae.key));
+  }
+
+  mount.innerHTML=`
+  <div class="verdict">
+    <div class="head">
+      <div class="loc-nm">${esc(loc.name)}</div>
+      <div class="span">${sc.cmpN} ${t.days} · ${range}d</div>
+    </div>
+    <div class="vs vs3">${cols}</div>
+    <div class="line">${amtLine}${hitLine?"<br>"+hitLine:""}</div>
+    ${baseLine?`<div class="baseline-rec">${baseLine}</div>`:''}
+    <div class="dualnote">${t.dualnote}</div>
+    <button class="share-btn" id="btnShare" type="button">${t.shareWA}</button>
+  </div>`;
+  const sb=$("#btnShare");
+  if(sb) sb.addEventListener("click", ()=>shareVerdict(loc, sc));
+}
+/* map a model key to its verdict-text colour class (defined inline below) */
+function cssClassFor(key){
+  // colour the verdict text to match the card's slot colour (positional), so a
+  // subset selection stays visually consistent between cards and sentences.
+  const idx = MODELS().findIndex(m=>m.key===key);
+  return idx>=0 ? "m-slot"+(idx+1) : "m-slot1";
+}
+
+/* Build a plain-text WhatsApp summary of a location's scorecard. Mirrors the
+   verdict card but as text a farmer can read in a chat. No HTML, no colours. */
+function buildShareText(loc, sc){
+  const t=T();
+  const lines=[];
+  lines.push(`🌧️ ${t.brandName} — ${loc.name}`);
+  lines.push(`${sc.cmpN} ${t.days} · ${range}d`);
+  lines.push("");
+  // per-model line: label · MAE mm/day · hit%
+  for(const m of MODELS()){
+    const mae = sc.mae && sc.mae[m.key]!=null ? sc.mae[m.key] : null;
+    const hit = sc.hit && sc.hit[m.key]!=null ? sc.hit[m.key] : null;
+    if(mae==null && hit==null) continue;
+    const base = m.key==="ifs" ? ` (${t.baseline})` : "";
+    const maePart = mae!=null ? `${t.mae} ${mae} ${t.maeUnit}` : "";
+    const hitPart = hit!=null ? `${t.hit} ${hit}%` : "";
+    const sep = maePart && hitPart ? " · " : "";
+    lines.push(`${modelLabel(m.key)}${base}: ${maePart}${sep}${hitPart}`);
+  }
+  lines.push("");
+  // verdict sentences (strip any HTML tags from the i18n strings)
+  const winMae = bestByMae(sc.mae);
+  const winHit = sc.hit? bestByHit(sc.hit) : null;
+  const strip = s => s.replace(/<[^>]+>/g,"");
+  if(winMae){
+    lines.push(strip(winMae.tie ? t.tieAmt : t.bestAmt({name:modelLabel(winMae.key),cls:""})));
+  }
+  if(winHit){
+    lines.push(strip(winHit.tie ? t.tieHit : t.bestHit({name:modelLabel(winHit.key),cls:""})));
+  }
+  if(winMae && !winMae.tie){
+    lines.push("");
+    lines.push(strip(winMae.key==="ifs" ? t.baseIsBest : t.betterThanBase({name:modelLabel(winMae.key),cls:""})));
+  }
+  return lines.join("\n");
+}
+
+/* Open a preview modal with the editable message. The farmer can tweak the text
+   or add a personal note before sending — then Send opens WhatsApp / share sheet. */
+function shareVerdict(loc, sc){
+  const text = buildShareText(loc, sc);
+  openShareModal(text);
+}
+
+let shareModalEl = null;
+function openShareModal(initialText){
+  const t = T();
+  closeShareModal();  // ensure only one
+  const ov = document.createElement("div");
+  ov.className = "modal-ov";
+  ov.innerHTML = `
+    <div class="modal" role="dialog" aria-modal="true">
+      <div class="modal-head">
+        <span>${t.previewTitle}</span>
+        <button class="icon-btn" id="shClose" aria-label="Close">✕</button>
+      </div>
+      <div class="modal-hint">${t.previewHint}</div>
+      <textarea id="shText" class="modal-ta" rows="12" aria-label="${t.previewTitle}"></textarea>
+      <div class="modal-actions">
+        <button class="btn btn-ghost" id="shCopy" type="button">${t.copyBtn}</button>
+        <button class="btn share-btn" id="shSend" type="button" style="margin-top:0">${t.sendWA}</button>
+      </div>
+    </div>`;
+  document.body.appendChild(ov);
+  shareModalEl = ov;
+  const ta = ov.querySelector("#shText");
+  ta.value = initialText;
+  // close on overlay click (but not when clicking inside the modal)
+  ov.addEventListener("click", e=>{ if(e.target===ov) closeShareModal(); });
+  ov.querySelector("#shClose").addEventListener("click", closeShareModal);
+  ov.querySelector("#shCopy").addEventListener("click", async ()=>{
+    try{ await navigator.clipboard.writeText(ta.value); showToast(T().copied); }
+    catch(e){ ta.select(); document.execCommand && document.execCommand("copy"); showToast(T().copied); }
+  });
+  ov.querySelector("#shSend").addEventListener("click", ()=> sendToWhatsApp(ta.value));
+}
+function closeShareModal(){
+  if(shareModalEl){ shareModalEl.remove(); shareModalEl=null; }
+}
+
+/* Send the (possibly edited) text. Native share sheet first, then wa.me, then clipboard. */
+async function sendToWhatsApp(text){
+  closeShareModal();
+  if(navigator.share){
+    try{ await navigator.share({ text }); return; }
+    catch(e){ if(e && e.name==="AbortError") return; }
+  }
+  const wa = "https://wa.me/?text=" + encodeURIComponent(text);
+  const win = window.open(wa, "_blank");
+  if(win) return;
+  try{ await navigator.clipboard.writeText(text); showToast(T().copied); }
+  catch(e){ showToast(T().shareFail); }
+}
+
+/* ---------- info guide ---------- */
+const APP_URL = "https://stanleywoosweeleong.github.io/Rainscore-lab/";
+const GITHUB_URL = "https://github.com/stanleywoosweeleong/Rainscore-lab";
+// QR code for APP_URL, embedded as an inline SVG path (offline — no external service).
+const QR_N = 37;
+const QR_PATH = "M2 2h1v1h-1zM3 2h1v1h-1zM4 2h1v1h-1zM5 2h1v1h-1zM6 2h1v1h-1zM7 2h1v1h-1zM8 2h1v1h-1zM10 2h1v1h-1zM12 2h1v1h-1zM13 2h1v1h-1zM14 2h1v1h-1zM16 2h1v1h-1zM20 2h1v1h-1zM24 2h1v1h-1zM28 2h1v1h-1zM29 2h1v1h-1zM30 2h1v1h-1zM31 2h1v1h-1zM32 2h1v1h-1zM33 2h1v1h-1zM34 2h1v1h-1zM2 3h1v1h-1zM8 3h1v1h-1zM10 3h1v1h-1zM11 3h1v1h-1zM12 3h1v1h-1zM13 3h1v1h-1zM14 3h1v1h-1zM18 3h1v1h-1zM19 3h1v1h-1zM21 3h1v1h-1zM23 3h1v1h-1zM24 3h1v1h-1zM26 3h1v1h-1zM28 3h1v1h-1zM34 3h1v1h-1zM2 4h1v1h-1zM4 4h1v1h-1zM5 4h1v1h-1zM6 4h1v1h-1zM8 4h1v1h-1zM10 4h1v1h-1zM14 4h1v1h-1zM19 4h1v1h-1zM20 4h1v1h-1zM21 4h1v1h-1zM22 4h1v1h-1zM23 4h1v1h-1zM28 4h1v1h-1zM30 4h1v1h-1zM31 4h1v1h-1zM32 4h1v1h-1zM34 4h1v1h-1zM2 5h1v1h-1zM4 5h1v1h-1zM5 5h1v1h-1zM6 5h1v1h-1zM8 5h1v1h-1zM12 5h1v1h-1zM13 5h1v1h-1zM14 5h1v1h-1zM22 5h1v1h-1zM23 5h1v1h-1zM25 5h1v1h-1zM26 5h1v1h-1zM28 5h1v1h-1zM30 5h1v1h-1zM31 5h1v1h-1zM32 5h1v1h-1zM34 5h1v1h-1zM2 6h1v1h-1zM4 6h1v1h-1zM5 6h1v1h-1zM6 6h1v1h-1zM8 6h1v1h-1zM10 6h1v1h-1zM11 6h1v1h-1zM12 6h1v1h-1zM14 6h1v1h-1zM15 6h1v1h-1zM16 6h1v1h-1zM17 6h1v1h-1zM19 6h1v1h-1zM20 6h1v1h-1zM22 6h1v1h-1zM23 6h1v1h-1zM24 6h1v1h-1zM28 6h1v1h-1zM30 6h1v1h-1zM31 6h1v1h-1zM32 6h1v1h-1zM34 6h1v1h-1zM2 7h1v1h-1zM8 7h1v1h-1zM11 7h1v1h-1zM12 7h1v1h-1zM13 7h1v1h-1zM19 7h1v1h-1zM22 7h1v1h-1zM25 7h1v1h-1zM28 7h1v1h-1zM34 7h1v1h-1zM2 8h1v1h-1zM3 8h1v1h-1zM4 8h1v1h-1zM5 8h1v1h-1zM6 8h1v1h-1zM7 8h1v1h-1zM8 8h1v1h-1zM10 8h1v1h-1zM12 8h1v1h-1zM14 8h1v1h-1zM16 8h1v1h-1zM18 8h1v1h-1zM20 8h1v1h-1zM22 8h1v1h-1zM24 8h1v1h-1zM26 8h1v1h-1zM28 8h1v1h-1zM29 8h1v1h-1zM30 8h1v1h-1zM31 8h1v1h-1zM32 8h1v1h-1zM33 8h1v1h-1zM34 8h1v1h-1zM11 9h1v1h-1zM14 9h1v1h-1zM15 9h1v1h-1zM24 9h1v1h-1zM25 9h1v1h-1zM26 9h1v1h-1zM2 10h1v1h-1zM5 10h1v1h-1zM6 10h1v1h-1zM7 10h1v1h-1zM8 10h1v1h-1zM9 10h1v1h-1zM10 10h1v1h-1zM12 10h1v1h-1zM13 10h1v1h-1zM14 10h1v1h-1zM16 10h1v1h-1zM17 10h1v1h-1zM18 10h1v1h-1zM19 10h1v1h-1zM26 10h1v1h-1zM27 10h1v1h-1zM30 10h1v1h-1zM32 10h1v1h-1zM33 10h1v1h-1zM34 10h1v1h-1zM4 11h1v1h-1zM5 11h1v1h-1zM6 11h1v1h-1zM7 11h1v1h-1zM12 11h1v1h-1zM13 11h1v1h-1zM14 11h1v1h-1zM17 11h1v1h-1zM20 11h1v1h-1zM21 11h1v1h-1zM25 11h1v1h-1zM30 11h1v1h-1zM31 11h1v1h-1zM32 11h1v1h-1zM4 12h1v1h-1zM8 12h1v1h-1zM9 12h1v1h-1zM11 12h1v1h-1zM16 12h1v1h-1zM17 12h1v1h-1zM19 12h1v1h-1zM20 12h1v1h-1zM25 12h1v1h-1zM26 12h1v1h-1zM28 12h1v1h-1zM30 12h1v1h-1zM31 12h1v1h-1zM32 12h1v1h-1zM33 12h1v1h-1zM34 12h1v1h-1zM2 13h1v1h-1zM3 13h1v1h-1zM4 13h1v1h-1zM7 13h1v1h-1zM9 13h1v1h-1zM10 13h1v1h-1zM11 13h1v1h-1zM13 13h1v1h-1zM14 13h1v1h-1zM16 13h1v1h-1zM17 13h1v1h-1zM19 13h1v1h-1zM21 13h1v1h-1zM22 13h1v1h-1zM24 13h1v1h-1zM28 13h1v1h-1zM29 13h1v1h-1zM32 13h1v1h-1zM33 13h1v1h-1zM5 14h1v1h-1zM7 14h1v1h-1zM8 14h1v1h-1zM9 14h1v1h-1zM12 14h1v1h-1zM15 14h1v1h-1zM16 14h1v1h-1zM18 14h1v1h-1zM19 14h1v1h-1zM20 14h1v1h-1zM21 14h1v1h-1zM22 14h1v1h-1zM26 14h1v1h-1zM28 14h1v1h-1zM30 14h1v1h-1zM34 14h1v1h-1zM2 15h1v1h-1zM5 15h1v1h-1zM7 15h1v1h-1zM9 15h1v1h-1zM11 15h1v1h-1zM13 15h1v1h-1zM15 15h1v1h-1zM18 15h1v1h-1zM19 15h1v1h-1zM22 15h1v1h-1zM23 15h1v1h-1zM25 15h1v1h-1zM27 15h1v1h-1zM29 15h1v1h-1zM32 15h1v1h-1zM2 16h1v1h-1zM3 16h1v1h-1zM4 16h1v1h-1zM5 16h1v1h-1zM6 16h1v1h-1zM7 16h1v1h-1zM8 16h1v1h-1zM18 16h1v1h-1zM21 16h1v1h-1zM23 16h1v1h-1zM24 16h1v1h-1zM28 16h1v1h-1zM2 17h1v1h-1zM3 17h1v1h-1zM13 17h1v1h-1zM14 17h1v1h-1zM16 17h1v1h-1zM17 17h1v1h-1zM20 17h1v1h-1zM21 17h1v1h-1zM22 17h1v1h-1zM25 17h1v1h-1zM26 17h1v1h-1zM27 17h1v1h-1zM29 17h1v1h-1zM32 17h1v1h-1zM34 17h1v1h-1zM2 18h1v1h-1zM3 18h1v1h-1zM5 18h1v1h-1zM6 18h1v1h-1zM7 18h1v1h-1zM8 18h1v1h-1zM12 18h1v1h-1zM13 18h1v1h-1zM14 18h1v1h-1zM15 18h1v1h-1zM16 18h1v1h-1zM24 18h1v1h-1zM25 18h1v1h-1zM26 18h1v1h-1zM27 18h1v1h-1zM28 18h1v1h-1zM29 18h1v1h-1zM30 18h1v1h-1zM31 18h1v1h-1zM2 19h1v1h-1zM9 19h1v1h-1zM10 19h1v1h-1zM12 19h1v1h-1zM14 19h1v1h-1zM15 19h1v1h-1zM16 19h1v1h-1zM17 19h1v1h-1zM18 19h1v1h-1zM20 19h1v1h-1zM21 19h1v1h-1zM22 19h1v1h-1zM27 19h1v1h-1zM28 19h1v1h-1zM30 19h1v1h-1zM32 19h1v1h-1zM33 19h1v1h-1zM34 19h1v1h-1zM3 20h1v1h-1zM6 20h1v1h-1zM8 20h1v1h-1zM9 20h1v1h-1zM11 20h1v1h-1zM12 20h1v1h-1zM17 20h1v1h-1zM21 20h1v1h-1zM23 20h1v1h-1zM25 20h1v1h-1zM27 20h1v1h-1zM28 20h1v1h-1zM29 20h1v1h-1zM31 20h1v1h-1zM32 20h1v1h-1zM34 20h1v1h-1zM2 21h1v1h-1zM5 21h1v1h-1zM10 21h1v1h-1zM12 21h1v1h-1zM14 21h1v1h-1zM16 21h1v1h-1zM17 21h1v1h-1zM18 21h1v1h-1zM19 21h1v1h-1zM20 21h1v1h-1zM22 21h1v1h-1zM24 21h1v1h-1zM26 21h1v1h-1zM28 21h1v1h-1zM30 21h1v1h-1zM31 21h1v1h-1zM32 21h1v1h-1zM33 21h1v1h-1zM34 21h1v1h-1zM2 22h1v1h-1zM3 22h1v1h-1zM4 22h1v1h-1zM6 22h1v1h-1zM7 22h1v1h-1zM8 22h1v1h-1zM13 22h1v1h-1zM15 22h1v1h-1zM16 22h1v1h-1zM17 22h1v1h-1zM21 22h1v1h-1zM24 22h1v1h-1zM29 22h1v1h-1zM31 22h1v1h-1zM33 22h1v1h-1zM34 22h1v1h-1zM2 23h1v1h-1zM3 23h1v1h-1zM4 23h1v1h-1zM5 23h1v1h-1zM9 23h1v1h-1zM10 23h1v1h-1zM15 23h1v1h-1zM16 23h1v1h-1zM18 23h1v1h-1zM20 23h1v1h-1zM21 23h1v1h-1zM24 23h1v1h-1zM25 23h1v1h-1zM30 23h1v1h-1zM31 23h1v1h-1zM2 24h1v1h-1zM4 24h1v1h-1zM8 24h1v1h-1zM9 24h1v1h-1zM10 24h1v1h-1zM13 24h1v1h-1zM17 24h1v1h-1zM18 24h1v1h-1zM19 24h1v1h-1zM24 24h1v1h-1zM25 24h1v1h-1zM26 24h1v1h-1zM28 24h1v1h-1zM30 24h1v1h-1zM31 24h1v1h-1zM33 24h1v1h-1zM34 24h1v1h-1zM2 25h1v1h-1zM6 25h1v1h-1zM9 25h1v1h-1zM10 25h1v1h-1zM14 25h1v1h-1zM15 25h1v1h-1zM18 25h1v1h-1zM19 25h1v1h-1zM27 25h1v1h-1zM28 25h1v1h-1zM29 25h1v1h-1zM32 25h1v1h-1zM2 26h1v1h-1zM3 26h1v1h-1zM5 26h1v1h-1zM6 26h1v1h-1zM7 26h1v1h-1zM8 26h1v1h-1zM10 26h1v1h-1zM12 26h1v1h-1zM13 26h1v1h-1zM15 26h1v1h-1zM16 26h1v1h-1zM17 26h1v1h-1zM18 26h1v1h-1zM21 26h1v1h-1zM26 26h1v1h-1zM27 26h1v1h-1zM28 26h1v1h-1zM29 26h1v1h-1zM30 26h1v1h-1zM31 26h1v1h-1zM34 26h1v1h-1zM10 27h1v1h-1zM11 27h1v1h-1zM13 27h1v1h-1zM17 27h1v1h-1zM18 27h1v1h-1zM20 27h1v1h-1zM23 27h1v1h-1zM26 27h1v1h-1zM30 27h1v1h-1zM32 27h1v1h-1zM33 27h1v1h-1zM2 28h1v1h-1zM3 28h1v1h-1zM4 28h1v1h-1zM5 28h1v1h-1zM6 28h1v1h-1zM7 28h1v1h-1zM8 28h1v1h-1zM10 28h1v1h-1zM13 28h1v1h-1zM14 28h1v1h-1zM16 28h1v1h-1zM17 28h1v1h-1zM18 28h1v1h-1zM20 28h1v1h-1zM21 28h1v1h-1zM22 28h1v1h-1zM23 28h1v1h-1zM25 28h1v1h-1zM26 28h1v1h-1zM28 28h1v1h-1zM30 28h1v1h-1zM32 28h1v1h-1zM2 29h1v1h-1zM8 29h1v1h-1zM10 29h1v1h-1zM11 29h1v1h-1zM14 29h1v1h-1zM16 29h1v1h-1zM17 29h1v1h-1zM21 29h1v1h-1zM25 29h1v1h-1zM26 29h1v1h-1zM30 29h1v1h-1zM31 29h1v1h-1zM32 29h1v1h-1zM34 29h1v1h-1zM2 30h1v1h-1zM4 30h1v1h-1zM5 30h1v1h-1zM6 30h1v1h-1zM8 30h1v1h-1zM10 30h1v1h-1zM11 30h1v1h-1zM13 30h1v1h-1zM16 30h1v1h-1zM19 30h1v1h-1zM20 30h1v1h-1zM21 30h1v1h-1zM22 30h1v1h-1zM24 30h1v1h-1zM25 30h1v1h-1zM26 30h1v1h-1zM27 30h1v1h-1zM28 30h1v1h-1zM29 30h1v1h-1zM30 30h1v1h-1zM33 30h1v1h-1zM34 30h1v1h-1zM2 31h1v1h-1zM4 31h1v1h-1zM5 31h1v1h-1zM6 31h1v1h-1zM8 31h1v1h-1zM10 31h1v1h-1zM12 31h1v1h-1zM13 31h1v1h-1zM15 31h1v1h-1zM16 31h1v1h-1zM21 31h1v1h-1zM22 31h1v1h-1zM23 31h1v1h-1zM24 31h1v1h-1zM25 31h1v1h-1zM26 31h1v1h-1zM27 31h1v1h-1zM29 31h1v1h-1zM31 31h1v1h-1zM33 31h1v1h-1zM34 31h1v1h-1zM2 32h1v1h-1zM4 32h1v1h-1zM5 32h1v1h-1zM6 32h1v1h-1zM8 32h1v1h-1zM12 32h1v1h-1zM14 32h1v1h-1zM18 32h1v1h-1zM21 32h1v1h-1zM22 32h1v1h-1zM26 32h1v1h-1zM29 32h1v1h-1zM30 32h1v1h-1zM32 32h1v1h-1zM33 32h1v1h-1zM34 32h1v1h-1zM2 33h1v1h-1zM8 33h1v1h-1zM11 33h1v1h-1zM12 33h1v1h-1zM13 33h1v1h-1zM14 33h1v1h-1zM15 33h1v1h-1zM16 33h1v1h-1zM17 33h1v1h-1zM18 33h1v1h-1zM21 33h1v1h-1zM24 33h1v1h-1zM27 33h1v1h-1zM29 33h1v1h-1zM30 33h1v1h-1zM31 33h1v1h-1zM32 33h1v1h-1zM33 33h1v1h-1zM34 33h1v1h-1zM2 34h1v1h-1zM3 34h1v1h-1zM4 34h1v1h-1zM5 34h1v1h-1zM6 34h1v1h-1zM7 34h1v1h-1zM8 34h1v1h-1zM10 34h1v1h-1zM11 34h1v1h-1zM18 34h1v1h-1zM19 34h1v1h-1zM25 34h1v1h-1zM26 34h1v1h-1zM29 34h1v1h-1zM30 34h1v1h-1z";
+
+let guideModalEl = null;
+function openGuide(){
+  const t = T();
+  closeGuide();
+  const ov = document.createElement("div");
+  ov.className = "modal-ov";
+  ov.innerHTML = `
+    <div class="modal" role="dialog" aria-modal="true">
+      <div class="modal-head">
+        <span>${t.guideTitle}</span>
+        <button class="icon-btn" id="gdClose" aria-label="Close">✕</button>
+      </div>
+      <div class="guide-body">
+        <div class="qr-wrap">
+          <svg viewBox="0 0 ${QR_N} ${QR_N}" shape-rendering="crispEdges" class="qr">
+            <rect width="${QR_N}" height="${QR_N}" fill="#fff"/>
+            <path d="${QR_PATH}" fill="#0f1620"/>
+          </svg>
+          <div class="qr-cap">${t.guideScan}</div>
+        </div>
+        ${t.guideSections.map(s=>`
+          <div class="guide-sec">
+            <div class="guide-h">${s.h}</div>
+            <div class="guide-p">${s.p}</div>
+          </div>`).join("")}
+        <div class="guide-links">
+          <a href="${APP_URL}" target="_blank" rel="noopener" class="guide-link">🔗 ${t.guideAppLink}</a>
+        </div>
+        <div class="guide-foot">${t.guideFoot}</div>
+      </div>
+    </div>`;
+  document.body.appendChild(ov);
+  guideModalEl = ov;
+  ov.addEventListener("click", e=>{ if(e.target===ov) closeGuide(); });
+  ov.querySelector("#gdClose").addEventListener("click", closeGuide);
+}
+function closeGuide(){ if(guideModalEl){ guideModalEl.remove(); guideModalEl=null; } }
+
+/* ---------- model selection ---------- */
+function renderModelChips(){
+  const wrap=$("#modelsChips"); if(!wrap) return;
+  wrap.innerHTML = MODELS().map(m=>
+    `<span class="mchip" style="border-color:var(${m.cssVar});color:var(${m.cssVar})">${modelLabel(m.key)}</span>`
+  ).join("");
+  const lbl=$("#t_modelsLabel"); if(lbl) lbl.textContent=T().modelsLabel;
+}
+
+let modelModalEl = null;
+function openModelPicker(){
+  const t=T();
+  closeModelPicker();
+  // working copy of the selection the user edits
+  let working = (state.selection||DEFAULT_SELECTION).slice();
+  const ov=document.createElement("div");
+  ov.className="modal-ov";
+  ov.innerHTML=`
+    <div class="modal" role="dialog" aria-modal="true">
+      <div class="modal-head">
+        <span>${t.pickTitle}</span>
+        <button class="icon-btn" id="mpClose" aria-label="Close">✕</button>
+      </div>
+      <div class="modal-hint">${t.pickHint}</div>
+      <div class="mp-list" id="mpList"></div>
+      <div class="mp-note" id="mpNote"></div>
+      <div class="modal-actions">
+        <button class="btn btn-ghost" id="mpCancel" type="button">${t.cancel}</button>
+        <button class="btn share-btn" id="mpSave" type="button" style="margin-top:0;background:var(--rain)">${t.save}</button>
+      </div>
+    </div>`;
+  document.body.appendChild(ov);
+  modelModalEl=ov;
+
+  function paint(){
+    const list=ov.querySelector("#mpList");
+    list.innerHTML = MODEL_POOL.map(m=>{
+      const on = working.includes(m.key);
+      const idx = working.indexOf(m.key);
+      const order = on? `<span class="mp-order">${idx+1}</span>` : "";
+      return `<button class="mp-item ${on?'on':''}" data-k="${m.key}" type="button">
+          <span class="mp-check">${on?'✓':''}</span>
+          <span class="mp-name">${modelLabel(m.key)}</span>
+          ${order}
+        </button>`;
+    }).join("");
+    const note=ov.querySelector("#mpNote");
+    const saveBtn=ov.querySelector("#mpSave");
+    if(working.length<MIN_ACTIVE){
+      note.textContent = t.pickAtLeast(MIN_ACTIVE) + " (" + working.length + "/" + MAX_ACTIVE + ")";
+      note.classList.add("warn");
+      saveBtn.disabled=true; saveBtn.style.opacity="0.5";
+    } else {
+      note.textContent = t.pickReadyN(working.length);
+      note.classList.remove("warn");
+      saveBtn.disabled=false; saveBtn.style.opacity="1";
+    }
+    list.querySelectorAll(".mp-item").forEach(b=>{
+      b.addEventListener("click",()=>{
+        const k=b.dataset.k;
+        const i=working.indexOf(k);
+        if(i>=0){ working.splice(i,1); }              // deselect
+        else if(working.length<MAX_ACTIVE){ working.push(k); }  // select if room
+        else { showToast(t.pickFull(MAX_ACTIVE)); return; }     // already full
+        paint();
+      });
+    });
+  }
+  paint();
+
+  ov.addEventListener("click",e=>{ if(e.target===ov) closeModelPicker(); });
+  ov.querySelector("#mpClose").addEventListener("click",closeModelPicker);
+  ov.querySelector("#mpCancel").addEventListener("click",closeModelPicker);
+  ov.querySelector("#mpSave").addEventListener("click",()=>{
+    if(working.length<MIN_ACTIVE) return;
+    const changed = working.join(",") !== (state.selection||[]).join(",");
+    state.selection = working.slice();
+    save();
+    closeModelPicker();
+    renderModelChips();
+    renderVerdict(); renderTable();
+    if(changed && activeLoc) doSync();   // pull data for any newly-added model
+  });
+}
+function closeModelPicker(){ if(modelModalEl){ modelModalEl.remove(); modelModalEl=null; } }
+function renderTable(){
+  const mount=$("#tableMount"), t=T();
+  if(!activeLoc){ mount.innerHTML=""; return; }
+  const sc=scoreLocation(activeLoc, range);
+  if(!sc.rows.length){ mount.innerHTML=""; return; }
+
+  // header: Date | <each model fc> | Actual | <each model err>
+  const models = MODELS();
+  let head = `<th>${t.colDate}</th>`;
+  for(const m of models) head += `<th style="color:var(${m.cssVar})">${m.short}</th>`;
+  head += `<th>${t.colAct}</th>`;
+  for(const m of models) head += `<th style="color:var(${m.cssVar})">${m.short}±</th>`;
+
+  let body="";
+  for(const r of sc.rows.slice().reverse()){
+    let fcCells="", errCells="";
+    for(const m of models){
+      const v = r.vals[m.key];
+      const hit = r.hits[m.key];
+      const dot = hit==null? "" : `<span class="dot ${hit?'hit':'miss'}"></span>`;
+      fcCells += `<td style="color:var(${m.cssVar})">${v==null?"—":v}${dot}</td>`;
+      const e = r.errs[m.key];
+      errCells += `<td style="color:var(${m.cssVar})">${e==null?"—":(e>0?"+":"")+e}</td>`;
+    }
+    body += `<tr>
+      <td>${shortDate(r.day)}</td>
+      ${fcCells}
+      <td class="${r.actual==null?'pending':'act'}">${r.actual==null?t.pending:r.actual}</td>
+      ${errCells}
+    </tr>`;
+  }
+
+  // footer: MAE row
+  let maeCells="";
+  for(const m of models){
+    const v = sc.mae? sc.mae[m.key] : null;
+    maeCells += `<td style="color:var(${m.cssVar})">${v==null?"—":v}</td>`;
+  }
+  const foot = sc.mae?`<tfoot><tr>
+      <td class="label">${t.mae}</td>
+      ${maeCells}
+      <td></td>
+      <td class="label" colspan="${models.length}" style="text-align:right">${t.maeUnit}</td>
+    </tr></tfoot>`:"";
+
+  let modelLegend = "";
+  for(const m of models) modelLegend += `<span><span class="sw" style="background:var(${m.cssVar})"></span>${modelLabel(m.key)}</span>`;
+  const hitLegend = `<span><span class="dot hit"></span>${t.legendHit}</span><span><span class="dot miss"></span>${t.legendMiss}</span>`;
+
+  mount.innerHTML=`
+  <div class="card">
+    <div class="tbl-scroll"><table>
+      <thead><tr>${head}</tr></thead>
+      <tbody>${body}</tbody>${foot}
+    </table></div>
+    <div class="legend">
+      <div class="legend-row">${modelLegend}</div>
+      <div class="legend-row">${hitLegend}</div>
+    </div>
+  </div>`;
+}
+function renderAll(){ applyStaticText(); renderModelChips(); renderLocList(); renderVerdict(); renderTable(); }
+
+/* ---------- actions ---------- */
+function esc(s){ return String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
+function uid(){ return "L"+Date.now().toString(36)+Math.random().toString(36).slice(2,6); }
+
+let editingId = null;  // null = add mode; otherwise editing this location
+
+/* toast with optional inline undo action */
+let toastTimer=null;
+function showToast(msg, undoFn){
+  const el=$("#toast");
+  el.innerHTML = esc(msg) + (undoFn? ` <u id="toastUndo">${T().undo}</u>` : "");
+  el.classList.add("show");
+  if(undoFn){ $("#toastUndo").onclick=()=>{ undoFn(); hideToast(); }; }
+  clearTimeout(toastTimer);
+  toastTimer=setTimeout(hideToast, undoFn?5000:2200);
+}
+function hideToast(){ $("#toast").classList.remove("show"); }
+
+/* the form's Save button handles both Add (editingId null) and Update */
+function saveLoc(){
+  const name=$("#inName").value.trim(), lat=parseFloat($("#inLat").value), lon=parseFloat($("#inLon").value);
+  if(!name||isNaN(lat)||isNaN(lon)){ setSyncStatus("needName"); return; }
+  if(editingId){
+    const loc=state.locations.find(l=>l.id===editingId);
+    if(loc){
+      const shifted = distM(+loc.lat, +loc.lon, lat, lon);  // metres moved
+      const farMove = shifted > MOVE_KEEP_M;                // beyond 1km = different point
+      loc.name=name; loc.lat=lat; loc.lon=lon;
+      // Within 1km the points share the same weather grid cell, so the existing
+      // forecast/actual records stay valid and are kept. A larger move makes the
+      // old history belong to a different place, so we reset it.
+      if(farMove) state.records[loc.id] = {};
+      save();
+      closeForm(); renderAll();
+      // Re-sync after any coordinate change (refreshes data; keeps records if near).
+      if(shifted>0){
+        activeLoc=loc.id;
+        if(!farMove) showToast(T().keptNear(Math.round(shifted)));
+        doSync();
+      }
+    }
+  } else {
+    const id=uid();
+    state.locations.push({id,name,lat,lon}); save();
+    activeLoc=id; closeForm(); renderAll(); doSync();
+  }
+}
+/* form panel open/close (the + header button toggles add-mode) */
+function openForm(){
+  $("#formPanel").style.display="block";
+  $("#btnOpenAdd").classList.add("on");
+  $("#btnOpenAdd").textContent="✕";
+}
+function closeForm(){
+  $("#formPanel").style.display="none";
+  $("#btnOpenAdd").classList.remove("on");
+  $("#btnOpenAdd").textContent="＋";
+  if(editingId) endEdit();      // leaving the panel also exits edit mode cleanly
+  $("#inName").value=$("#inLat").value=$("#inLon").value="";
+  setSyncStatus(null);
+}
+function toggleForm(){
+  if($("#formPanel").style.display==="none"){ openForm(); $("#inName").focus(); }
+  else closeForm();
+}
+function startEdit(id){
+  const loc=state.locations.find(l=>l.id===id); if(!loc) return;
+  editingId=id;
+  $("#inName").value=loc.name; $("#inLat").value=loc.lat; $("#inLon").value=loc.lon;
+  openForm();
+  const t=T();
+  $("#formTitle").textContent=t.update;
+  $("#btnAdd").textContent=t.update;
+  $("#editingTag").style.display="block"; $("#editingTag").textContent=t.editing(loc.name);
+  $("#btnCancelEdit").style.display="block"; $("#btnCancelEdit").textContent=t.cancel;
+  $("#formPanel").scrollIntoView({behavior:"smooth",block:"nearest"});
+}
+function endEdit(){
+  editingId=null;
+  $("#inName").value=$("#inLat").value=$("#inLon").value="";
+  const t=T();
+  $("#formTitle").textContent=t.addloc2.replace(/^\+\s*/,"");
+  $("#btnAdd").textContent=t.save;
+  $("#editingTag").style.display="none";
+  $("#btnCancelEdit").style.display="none";
+}
+
+/* soft delete: flag deleted, keep records, offer undo. Never hard-wipes here. */
+function softDelLoc(id){
+  const loc=state.locations.find(l=>l.id===id); if(!loc) return;
+  loc.deleted=true; save();
+  if(activeLoc===id) activeLoc=activeLocs()[0]?.id||null;
+  renderAll();
+  showToast(`${T().softDeleted} · ${loc.name}`, ()=>restoreLoc(id, true));
+}
+function restoreLoc(id, silent){
+  const loc=state.locations.find(l=>l.id===id); if(!loc) return;
+  delete loc.deleted; save();
+  if(!activeLoc) activeLoc=id;
+  renderAll();
+  if(!silent) showToast(T().restored);
+}
+/* purge: permanent, irreversible — only affects already-soft-deleted locations */
+function purgeBin(){
+  if(!confirm(T().confirmPurge)) return;
+  for(const loc of deletedLocs()) delete state.records[loc.id];
+  state.locations = activeLocs();
+  save(); renderAll();
+  showToast(T().purged);
+}
+
+/* remembers the last sync outcome so the status line can be re-rendered in the
+   current language when the user toggles ZH/EN (otherwise it stays frozen). */
+let lastSyncState = null;  // null | "syncing" | {synced:n} | "syncErr" | "needName" | "gpsErr" | "gpsOk"
+function renderSyncStatus(){
+  const st=$("#syncStatus"); if(!st) return;
+  const s=lastSyncState, t=T();
+  if(s==null){ st.textContent=""; return; }
+  if(s==="syncing") st.textContent=t.syncing;
+  else if(s==="syncErr") st.textContent=t.syncErr;
+  else if(s==="needName") st.textContent=t.needName;
+  else if(s==="gpsErr") st.textContent=t.gpsErr;
+  else if(s==="gpsOk") st.textContent=t.gpsOk;
+  else if(s && s.synced!=null) st.textContent=t.synced(s.synced);
+  else st.textContent="";
+}
+function setSyncStatus(s){ lastSyncState=s; renderSyncStatus(); }
+
+async function doSync(){
+  if(!activeLoc) return;
+  const loc=state.locations.find(l=>l.id===activeLoc);
+  if(!loc || loc.deleted) return;
+  setSyncStatus("syncing");
+  try{
+    await syncLocation(loc, range);
+    const sc=scoreLocation(activeLoc, range);
+    setSyncStatus({synced:sc.cmpN});
+    renderVerdict(); renderTable();
+  }catch(e){ setSyncStatus("syncErr"); }
+}
+function useGps(){
+  if(!navigator.geolocation){ setSyncStatus("gpsErr"); return; }
+  navigator.geolocation.getCurrentPosition(p=>{
+    $("#inLat").value=p.coords.latitude.toFixed(4);
+    $("#inLon").value=p.coords.longitude.toFixed(4);
+    setSyncStatus("gpsOk");
+  },()=>{ setSyncStatus("gpsErr"); });
+}
+
+/* ---------- wire up ---------- */
+$("#langBtn").addEventListener("click",()=>{
+  LANG = LANG==="zh"?"en":"zh"; localStorage.setItem("rainscore_lang",LANG); renderAll();
+});
+$("#btnAdd").addEventListener("click",saveLoc);
+$("#btnOpenAdd").addEventListener("click",toggleForm);
+$("#btnHelp").addEventListener("click",openGuide);
+$("#btnModels").addEventListener("click",openModelPicker);
+$("#btnCloseForm").addEventListener("click",closeForm);
+$("#btnCancelEdit").addEventListener("click",closeForm);
+$("#btnGps").addEventListener("click",useGps);
+$("#btnSync").addEventListener("click",doSync);
+$("#rangeSeg").addEventListener("click",e=>{
+  const b=e.target.closest("button"); if(!b) return;
+  range=+b.dataset.r;
+  [...$("#rangeSeg").children].forEach(x=>x.classList.toggle("on",x===b));
+  renderVerdict(); renderTable();
+});
+
+/* ---------- boot: render, then log-on-open auto-sync of active location ---------- */
+renderAll();
+if(activeLoc) doSync();   // log-on-open + gap-fill happens here every launch
+
+if("serviceWorker" in navigator){
+  navigator.serviceWorker.register("sw.js").catch(()=>{});
+}
+</script>
+</body>
+</html>
