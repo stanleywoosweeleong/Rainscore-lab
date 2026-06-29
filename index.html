@@ -356,7 +356,7 @@ footer{text-align:center;padding:18px 10px 8px;font-size:11px;color:var(--ink2)}
 
 const TZ = "Asia/Kuching";
 const STORE_KEY = "rainscore_lab_v1";
-const CACHE_TAG = "rainscore-lab-20260627-03";
+const CACHE_TAG = "rainscore-lab-20260627-06";
 const DRY_THRESHOLD = 1.0;   // mm — <1mm counts as a "dry day" (field-adjustable)
 const PREV_HOST = "https://previous-runs-api.open-meteo.com/v1/forecast";
 const ARCH_HOST = "https://archive-api.open-meteo.com/v1/archive";
@@ -443,14 +443,18 @@ const I18N = {
     copyBtn:"复制", sendWA:"发送到 WhatsApp",
     guideTitle:"使用指南", guideScan:"扫码打开 / 分享此 App",
     guideAppLink:"打开 App 网址", guideRepo:"GitHub 源代码",
-    guideFoot:"数据来源：Open-Meteo（CC BY 4.0）· 预报模式 ECMWF IFS 9km、DWD ICON、JMA GSM<br>实际雨量 ERA5 再分析",
+    guideFoot:"数据来源：Open-Meteo（CC BY 4.0）· 预报模式：IFS 9km、ICON、JMA、CMA、GEM、GFS<br>实际雨量 ERA5 再分析",
     guideSections:[
-      { h:"这个 App 做什么？", p:"对比三个天气模式对每天雨量的预报，跟实际雨量（ERA5）比较，找出哪个模式在你的果园最准。目的是帮那些觉得目前预报不准的农户，看看换个模式会不会更好。" },
-      { h:"三个模式", p:"ECMWF IFS 9km＝目前天气预报用的模式（基准）。另外两个候选：DWD ICON（德国，11公里）和 JMA GSM（日本，擅长热带亚洲）。卡片会标出最准的一个，若候选比 IFS 更准，会建议为该农户改用。" },
-      { h:"两个分数", p:"「平均误差」＝雨量数字差多少（毫米/天，越小越准）。「晴雨命中」＝判断「有雨／无雨」对的比率（越高越准）。两者回答不同问题：一个看雨量，一个看会不会下雨。" },
-      { h:"7天 / 14天 / 30天", p:"切换比较的时间范围。30天看整月表现，7天看最近一周。注意：实际雨量（ERA5）约延迟5天，所以7天范围能比对的天数很少，结果会跳动，30天最可靠。" },
-      { h:"怎么用", p:"点右上角 ＋ 新增果园（输入坐标或用 GPS）。每天打开 App 会自动记录当天预报，并用最近7天存档补回遗漏。记录会一天天累积，约一个月后 30天范围最完整。" },
-      { h:"分享给农户", p:"在记分卡点「分享到 WhatsApp」，可预览并加上你的话，再发送。让农户看到自己果园的模式比较。" },
+      { h:"这个 App 做什么？", p:"你平时用的天气 App，背后其实是某一个「天气模式」在算。世界上有好几个国家各自做了自己的模式，对同一个地方、同一天的雨量，它们的预报可能差很多。这个 App 把多个模式对你果园的雨量预报，跟事后的实际雨量比一比，找出哪个模式在你这里最准。" },
+      { h:"什么是「天气模式」？", p:"就是一套超级电脑跑的天气计算程序。气象局把今天的大气状况（温度、湿度、风…）输入进去，电脑往后推算未来几天的天气。不同国家用不同的程序和超级电脑，所以结果不一样——就像不同厨师用同样的食材，做出来的味道不同。" },
+      { h:"六个模式是谁？", p:"IFS 9km＝欧洲中期预报中心（ECMWF），公认全球最准之一，也是你目前广播用的。ICON＝德国气象局。JMA＝日本气象厅，擅长热带亚洲。CMA＝中国气象局，邻近、覆盖好。GEM＝加拿大。GFS＝美国，历史最长、最稳定。选 1 到 6 个一起比。" },
+      { h:"两个主要分数", p:"「平均误差」＝预报的雨量数字差多少毫米（越小越准）。「晴雨命中」＝判断「那天有没有下雨」对的比率（越高越准）。一个看雨量多少，一个看到底下不下——两者不一样，有的模式雨量准但晴雨判断差，反之亦然。" },
+      { h:"排名 #1 #2 …", p:"每张卡片上，两个分数旁各有一个名次（#1 最好）。绿色 #1 表示该项最准。若几个模式同分，会并列同名次。这样一眼就看出谁强在雨量、谁强在晴雨判断。" },
+      { h:"「偏多 / 偏少」", p:"在平均误差下面。「偏多」＝这个模式倾向报得比实际多雨；「偏少」＝倾向报得比实际少。对榴莲很重要：报少雨（偏少）会让你措手不及，报多雨（偏多）顶多是虚惊一场。" },
+      { h:"「漏雨 / 空报」", p:"在晴雨命中下面。「漏雨」＝模式说没雨、结果下了（危险，会被淋到）。「空报」＝模式说有雨、结果没下（虚惊）。同样命中率，漏雨少的模式更可靠、更安全。" },
+      { h:"「样本太少 / 参考 / 可靠」", p:"顶部的小标签。实际雨量（ERA5）约延迟 5 天，所以刚开始能比对的天数很少，排名会跳动、不可靠。少于 8 天＝样本太少；8–19 天＝参考；20 天以上＝可靠。等到「可靠」再下结论。" },
+      { h:"怎么用", p:"点右上角 ＋ 新增果园（输入坐标或用 GPS）。点「模式」选要比的模式。每天打开 App 会自动记录当天预报，并用最近 7 天存档补回。记录一天天累积，约一个月后最完整。" },
+      { h:"分享结果", p:"在记分卡点「分享到 WhatsApp」，会带上各模式的误差、偏向、漏雨／空报和可靠度，可预览后发出。把你的结果发回来，就能集合大家不同果园的数据一起看。" },
     ],
   },
   en:{
@@ -500,14 +504,18 @@ const I18N = {
     copyBtn:"Copy", sendWA:"Send to WhatsApp",
     guideTitle:"Guide", guideScan:"Scan to open / share this app",
     guideAppLink:"Open app URL", guideRepo:"GitHub source code",
-    guideFoot:"Data: Open-Meteo (CC BY 4.0) · Models ECMWF IFS 9km, DWD ICON, JMA GSM<br>Actual rain ERA5 reanalysis",
+    guideFoot:"Data: Open-Meteo (CC BY 4.0) · Models: IFS 9km, ICON, JMA, CMA, GEM, GFS<br>Actual rain ERA5 reanalysis",
     guideSections:[
-      { h:"What this app does", p:"It compares three weather models' daily rain forecasts against the actual rainfall (ERA5), to find which model is most accurate at your orchard. The goal is to help farmers unhappy with the current forecast see whether a different model would serve them better." },
-      { h:"The three models", p:"ECMWF IFS 9km = the model your forecast uses now (baseline). Two candidates: DWD ICON (Germany, 11km) and JMA GSM (Japan, strong for tropical Asia). The card crowns the most accurate, and if a candidate beats IFS it suggests switching that farmer." },
-      { h:"The two scores", p:"\"Avg miss\" = how far off the rain amount was (mm/day, lower is better). \"Dry/wet calls\" = how often it correctly called rain vs dry (higher is better). They answer different questions: one is about amount, one about whether it rains at all." },
-      { h:"7d / 14d / 30d", p:"Switch the comparison window. 30d shows the whole month; 7d shows the last week. Note: actual rain (ERA5) lags ~5 days, so the 7-day window has very few scored days and swings a lot — 30d is the most reliable." },
-      { h:"How to use it", p:"Tap ＋ (top right) to add an orchard (type coordinates or use GPS). Each time you open the app it logs that day's forecast and back-fills the last 7 days from the archive. Records build up daily; the 30-day window is fullest after about a month." },
-      { h:"Share with a farmer", p:"On a scorecard, tap \"Share to WhatsApp\" — you can preview, add your own note, then send. It lets a farmer see the model comparison for their own orchard." },
+      { h:"What this app does", p:"The weather app on your phone is really just one \"weather model\" doing the maths behind the scenes. Several countries each built their own model, and for the same place on the same day they can predict quite different rainfall. This app compares several models' rain forecasts for your orchard against what actually fell, to find which one is most accurate where you are." },
+      { h:"What is a \"weather model\"?", p:"It's a giant computer program run on a supercomputer. A weather agency feeds in today's conditions (temperature, humidity, wind…) and the computer calculates the next few days. Different countries use different programs and supercomputers, so they get different answers — like different cooks making different dishes from the same ingredients." },
+      { h:"Who are the six models?", p:"IFS 9km = ECMWF (Europe), widely rated the most accurate in the world, and the one your broadcast uses now. ICON = Germany's service. JMA = Japan, strong for tropical Asia. CMA = China, a close neighbour with good coverage. GEM = Canada. GFS = USA, the longest, most stable record. Pick any 1 to 6 to compare." },
+      { h:"The two main scores", p:"\"Avg miss\" = how many mm the forecast was off by (lower is better). \"Dry/wet calls\" = how often it got \"did it rain that day or not\" right (higher is better). One is about how much rain, the other about whether it rains at all — a model can be good at one and poor at the other." },
+      { h:"The ranks #1 #2 …", p:"On each card, both scores carry a rank (#1 is best). A green #1 means best on that score. If models tie, they share a rank. This shows at a glance which model is strong on amount versus which is strong on dry/wet calls." },
+      { h:"\"Too wet / too dry\"", p:"Shown under Avg miss. \"Too wet\" = the model tends to predict more rain than falls; \"too dry\" = it predicts less. This matters for durian: a model that runs too dry can leave you caught out in real rain, while one that runs too wet is just a false alarm." },
+      { h:"\"Missed / false\"", p:"Shown under Dry/wet calls. \"Missed\" = model said dry but it rained (dangerous — you get caught out). \"False\" = model said rain but it stayed dry (just annoying). At the same accuracy, a model with fewer \"missed\" is safer." },
+      { h:"\"Too few days / indicative / reliable\"", p:"The little tag at the top. Actual rain (ERA5) lags ~5 days, so early on there are very few scored days and the ranking jumps around. Under 8 days = too few; 8–19 = indicative; 20+ = reliable. Wait for \"reliable\" before drawing conclusions." },
+      { h:"How to use it", p:"Tap ＋ (top right) to add an orchard (type coordinates or use GPS). Tap \"Models\" to choose which to compare. Each time you open the app it logs that day's forecast and back-fills the last 7 days. Records build up daily and are fullest after about a month." },
+      { h:"Share your results", p:"On a scorecard, tap \"Share to WhatsApp\" — it includes each model's miss, bias, missed/false and reliability, with a preview before you send. Send your results back so everyone's orchards can be pooled together." },
     ],
   }
 };
@@ -550,13 +558,19 @@ function distM(lat1, lon1, lat2, lon2){
   return 2*R*Math.asin(Math.min(1,Math.sqrt(a)));
 }
 
-/* ---------- API: fetch with gentle retry (Open-Meteo 503 throttle aware) ---------- */
-async function fetchJSON(url, tries=3){
+/* ---------- API: fetch with gentle retry (Open-Meteo 429/503 throttle aware) ---------- */
+async function fetchJSON(url, tries=4){
   let lastErr;
   for(let i=0;i<tries;i++){
     try{
       const r = await fetch(url);
-      if(r.status===503){ await sleep(2500+Math.random()*1800); continue; }
+      if(r.status===429 || r.status===503){
+        // honour Retry-After if the server sends it, else exponential-ish backoff with jitter
+        const ra = parseInt(r.headers.get("retry-after")||"",10);
+        const wait = (!isNaN(ra) ? ra*1000 : (1500 * Math.pow(1.8, i))) + Math.random()*1200;
+        await sleep(Math.min(wait, 12000));
+        continue;
+      }
       if(!r.ok) throw new Error("HTTP "+r.status);
       return await r.json();
     }catch(e){ lastErr=e; await sleep(900+Math.random()*900); }
@@ -564,6 +578,24 @@ async function fetchJSON(url, tries=3){
   throw lastErr || new Error("fetch failed");
 }
 const sleep = ms => new Promise(r=>setTimeout(r,ms));
+
+/* Run async tasks with limited concurrency (pool), so we never fire all model
+   requests at once — that is what trips Open-Meteo's 429 rate limit. */
+async function runPooled(items, worker, concurrency=2){
+  const results = new Array(items.length);
+  let idx = 0;
+  async function next(){
+    const i = idx++;
+    if(i>=items.length) return;
+    try{ results[i] = await worker(items[i], i); }
+    catch(e){ results[i] = undefined; }
+    return next();
+  }
+  const runners = [];
+  for(let c=0;c<Math.min(concurrency, items.length);c++) runners.push(next());
+  await Promise.all(runners);
+  return results;
+}
 
 /* Sum hourly precipitation into per-local-day totals.
    The Previous Runs API returns hourly arrays; we bucket by local date. */
@@ -608,30 +640,48 @@ async function fetchActualDaily(lat, lon, startYMD, endYMD){
 }
 
 /* ---------- the sync routine: log-on-open + 7-day gap-fill + ERA5 actuals ---------- */
-async function syncLocation(loc, pastDays, onStep){
+async function syncLocation(loc, pastDays, onStep, force){
   const recs = state.records[loc.id] || (state.records[loc.id]={});
+  // Per-day fetch cache: once a model is logged today, today's open already has
+  // its data — past-day forecasts don't change, so skip refetching to spare the API.
+  const today = todayYMD();
+  const fc = (state.fetchedOn = state.fetchedOn || {});
+  const locFc = (fc[loc.id] = fc[loc.id] || {});
+
   // 1) Forecasts: recover last min(pastDays,7) days from Previous Runs for every model.
   onStep && onStep("forecast");
   const models = MODELS();
-  const results = await Promise.all(
-    models.map(m => fetchForecastDaily(loc.lat, loc.lon, m.api, pastDays)
-                      .catch(()=>({})))   // a model that fails just stays blank, others proceed
-  );
-  results.forEach((daily, i) => {
-    const key = models[i].key;
-    for(const day in daily){
-      recs[day] = recs[day] || {};
-      if(recs[day][key]==null) recs[day][key] = daily[day];  // first capture wins (honest record)
-    }
-  });
+  // only fetch models not already fetched today for this location
+  const toFetch = force ? models : models.filter(m => locFc[m.key] !== today);
+  if(toFetch.length){
+    const results = await runPooled(
+      toFetch,
+      m => fetchForecastDaily(loc.lat, loc.lon, m.api, pastDays).catch(()=>({})),
+      2   // at most 2 model requests in flight — keeps us under Open-Meteo's rate limit
+    );
+    results.forEach((daily, i) => {
+      const key = toFetch[i].key;
+      let gotAny = false;
+      for(const day in (daily||{})){
+        recs[day] = recs[day] || {};
+        if(recs[day][key]==null) recs[day][key] = daily[day];  // first capture wins (honest record)
+        gotAny = true;
+      }
+      if(gotAny) locFc[key] = today;   // mark fetched today only if data actually came back
+    });
+  }
 
   // 2) Actuals: ERA5 over the whole requested window (safe to refresh; truth doesn't change)
   onStep && onStep("actual");
   const start = daysAgoYMD(pastDays-1), end = todayYMD();
-  try{
-    const act = await fetchActualDaily(loc.lat, loc.lon, start, end);
-    for(const day in act){ recs[day]=recs[day]||{}; recs[day].actual=act[day]; }
-  }catch(e){ /* ERA5 lag: recent days simply stay pending */ }
+  // actuals also cached per day — only refetch once per calendar day
+  if(force || locFc.__actual !== today){
+    try{
+      const act = await fetchActualDaily(loc.lat, loc.lon, start, end);
+      for(const day in act){ recs[day]=recs[day]||{}; recs[day].actual=act[day]; }
+      locFc.__actual = today;
+    }catch(e){ /* ERA5 lag: recent days simply stay pending */ }
+  }
 
   save();
 }
@@ -915,18 +965,28 @@ function buildShareText(loc, sc){
   const t=T();
   const lines=[];
   lines.push(`🌧️ ${t.brandName} — ${loc.name}`);
-  lines.push(`${sc.cmpN} ${t.days} · ${range}d`);
+  // header with confidence so the reader knows how much to trust it
+  const confTxt = t["conf"+(confidenceLevel(sc.cmpN).charAt(0).toUpperCase()+confidenceLevel(sc.cmpN).slice(1))];
+  lines.push(`${sc.cmpN} ${t.days} · ${range}d · ${confTxt}`);
   lines.push("");
-  // per-model line: label · MAE mm/day · hit%
+  // per-model: MAE (with bias direction) and dry/wet (with missed/false counts)
   for(const m of MODELS()){
     const mae = sc.mae && sc.mae[m.key]!=null ? sc.mae[m.key] : null;
     const hit = sc.hit && sc.hit[m.key]!=null ? sc.hit[m.key] : null;
     if(mae==null && hit==null) continue;
     const base = m.key==="ifs" ? ` (${t.baseline})` : "";
-    const maePart = mae!=null ? `${t.mae} ${mae} ${t.maeUnit}` : "";
-    const hitPart = hit!=null ? `${t.hit} ${hit}%` : "";
-    const sep = maePart && hitPart ? " · " : "";
-    lines.push(`${modelLabel(m.key)}${base}: ${maePart}${sep}${hitPart}`);
+    lines.push(`${modelLabel(m.key)}${base}`);
+    if(mae!=null){
+      const bz = sc.bias? sc.bias[m.key] : null;
+      const biasTxt = (bz==null||bz===0)? "" :
+        (bz>0 ? ` (+${bz} ${t.biasWet})` : ` (${bz} ${t.biasDry})`);
+      lines.push(`  ${t.mae}: ${mae} ${t.maeUnit}${biasTxt}`);
+    }
+    if(hit!=null){
+      const mr = sc.miss? (sc.miss[m.key]||0) : 0;
+      const fa = sc.falarm? (sc.falarm[m.key]||0) : 0;
+      lines.push(`  ${t.hit}: ${hit}% (${t.missRain} ${mr} · ${t.falseAlarm} ${fa})`);
+    }
   }
   lines.push("");
   // verdict sentences (strip any HTML tags from the i18n strings)
@@ -1129,7 +1189,7 @@ function openModelPicker(){
     closeModelPicker();
     renderModelChips();
     renderVerdict(); renderTable();
-    if(changed && activeLoc) doSync();   // pull data for any newly-added model
+    if(changed && activeLoc) doSync(true);   // pull data for any newly-added model
   });
 }
 function closeModelPicker(){ if(modelModalEl){ modelModalEl.remove(); modelModalEl=null; } }
@@ -1324,13 +1384,13 @@ function renderSyncStatus(){
 }
 function setSyncStatus(s){ lastSyncState=s; renderSyncStatus(); }
 
-async function doSync(){
+async function doSync(force){
   if(!activeLoc) return;
   const loc=state.locations.find(l=>l.id===activeLoc);
   if(!loc || loc.deleted) return;
   setSyncStatus("syncing");
   try{
-    await syncLocation(loc, range);
+    await syncLocation(loc, range, null, force);
     const sc=scoreLocation(activeLoc, range);
     setSyncStatus({synced:sc.cmpN});
     renderVerdict(); renderTable();
@@ -1356,7 +1416,7 @@ $("#btnModels").addEventListener("click",openModelPicker);
 $("#btnCloseForm").addEventListener("click",closeForm);
 $("#btnCancelEdit").addEventListener("click",closeForm);
 $("#btnGps").addEventListener("click",useGps);
-$("#btnSync").addEventListener("click",doSync);
+$("#btnSync").addEventListener("click",()=>doSync(true));
 $("#rangeSeg").addEventListener("click",e=>{
   const b=e.target.closest("button"); if(!b) return;
   range=+b.dataset.r;
