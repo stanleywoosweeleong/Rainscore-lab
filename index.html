@@ -16,7 +16,7 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="RainScore">
+<meta name="apple-mobile-web-app-title" content="RainScore Lab">
 <style>
 :root{
   --bg:#0f1620; --panel:#172230; --panel2:#1f2d3d; --ink:#e8eef5; --ink2:#9fb1c6;
@@ -33,11 +33,11 @@ body{padding:env(safe-area-inset-top) 0 calc(env(safe-area-inset-bottom) + 8px)}
 .wrap{max-width:760px;margin:0 auto;padding:0 var(--pad)}
 header{display:flex;align-items:center;gap:10px;padding:14px var(--pad) 12px;
   position:sticky;top:0;background:linear-gradient(180deg,var(--bg) 70%,transparent);z-index:20}
-.logo{display:flex;align-items:center;gap:9px;font-weight:700;letter-spacing:.5px}
-.logo .drop{font-size:26px;line-height:1}
-.brand-text{display:flex;flex-direction:column;line-height:1.15}
-.logo .name{font-size:19px}
-.logo .sub{font-size:11.5px;color:var(--ink2);font-weight:500;letter-spacing:.2px}
+.logo{display:flex;align-items:center;gap:8px;font-weight:700;letter-spacing:.3px;min-width:0}
+.logo .drop{font-size:24px;line-height:1;flex-shrink:0}
+.brand-text{display:flex;flex-direction:column;line-height:1.15;min-width:0}
+.logo .name{font-size:17px;white-space:nowrap}
+.logo .sub{font-size:11px;color:var(--ink2);font-weight:500;letter-spacing:.2px;white-space:nowrap}
 .spacer{flex:1}
 .lang{background:var(--panel2);border:1px solid var(--line);color:var(--ink);
   border-radius:999px;padding:6px 14px;font-size:13px;font-weight:600;cursor:pointer}
@@ -78,6 +78,22 @@ input:focus,select:focus{outline:2px solid var(--rain);outline-offset:0}
   color:var(--ink);border-radius:9px;padding:9px 12px;font-size:14px;font-family:inherit;margin-bottom:10px}
 .loc-filter:focus{outline:2px solid var(--rain);outline-offset:0}
 .loc-list{display:flex;flex-direction:column;gap:8px}
+/* region accordion */
+.loc-group-h{display:flex;align-items:center;gap:9px;cursor:pointer;user-select:none;
+  background:var(--panel2);border:1px solid var(--line);border-radius:9px;padding:11px 13px;
+  font-family:inherit;flex-wrap:wrap}
+.loc-group-h:active{transform:scale(.995)}
+.loc-group-h.has-active{border-color:var(--rain)}
+.lg-caret{color:var(--ink2);font-size:12px;width:12px;flex-shrink:0}
+.lg-name{font-size:14px;font-weight:600;color:var(--ink);flex-shrink:0}
+.lg-active{flex:1;min-width:0;font-size:12.5px;color:var(--rain);font-weight:600;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  padding-left:8px;border-left:1px solid var(--line)}
+.lg-count{font-size:12px;font-weight:700;color:var(--ink2);background:var(--panel);
+  border-radius:999px;padding:1px 9px;min-width:20px;text-align:center;margin-left:auto;flex-shrink:0}
+.loc-group-h.open .lg-name{color:var(--rain)}
+.loc-group-body{display:flex;flex-direction:column;gap:8px;margin:2px 0 4px 10px;
+  padding-left:8px;border-left:2px solid var(--line)}
 .loc{display:flex;align-items:center;gap:10px;background:var(--panel2);
   border:1px solid var(--line);border-radius:10px;padding:10px 12px;cursor:pointer}
 .loc.active{border-color:var(--rain);box-shadow:inset 0 0 0 1px var(--rain)}
@@ -380,7 +396,7 @@ footer{text-align:center;padding:18px 10px 8px;font-size:11px;color:var(--ink2)}
 
 const TZ = "Asia/Kuching";
 const STORE_KEY = "rainscore_lab_v1";
-const CACHE_TAG = "rainscore-lab-20260627-10";
+const CACHE_TAG = "rainscore-lab-20260627-21";
 const DRY_THRESHOLD = 1.0;   // mm — <1mm counts as a "dry day" (field-adjustable)
 const PREV_HOST = "https://previous-runs-api.open-meteo.com/v1/forecast";
 const ARCH_HOST = "https://archive-api.open-meteo.com/v1/archive";
@@ -426,15 +442,18 @@ const I18N = {
     gps:"使用我的 GPS", save:"保存地点", data:"数据", sync:"更新记录", exportCsv:"导出 CSV 原始数据",
     foot:"预报：ECMWF IFS 9km · DWD ICON · JMA GSM · 实际：ERA5 再分析 · CC BY 4.0",
     langBtn:"中",
-    emptyLoc:"点右上角 ＋ 新增第一个果园地点", emptyLocBig:"📍", filterPlaceholder:"搜索果园名…", noMatch:"没有符合的果园",
+    emptyLoc:"点右上角 ＋ 新增第一个果园地点", emptyLocBig:"📍", filterPlaceholder:"搜索果园名…", noMatch:"没有符合的果园", ungrouped:"其他",
     pickLoc:"选择上方地点查看记分", noData:"尚无记录，点「更新记录」",
     how:"每次打开会记录各模型对「今天」的雨量预报，并用最近 7 天的存档自动补回遗漏的日子。实际雨量用 ERA5 再分析回填（约延迟 5 天）。",
     mae:"平均误差", maeUnit:"毫米/天", hit:"晴雨命中", hitUnit:"准确率",
     days:"天", winner:"最准", tie:"打平", baseline:"目前预报模式",
     bestAmt:(w)=>`雨量上，<b class="${w.cls}">${w.name}</b> 这个月最接近实际。`,
     bestHit:(w)=>`判断「有雨／无雨」上，<b class="${w.cls}">${w.name}</b> 命中最高。`,
-    tieAmt:"雨量上各模型不相上下。",
-    tieHit:"晴雨判断上各模型不相上下。",
+    tieAmt:"雨量上各模型非常接近，难分高下。",
+    tieHit:"晴雨判断上各模型非常接近，难分高下。",
+    coLeadAmt:(names)=>`雨量上，${names} 并列最准。`,
+    coLeadHit:(names)=>`晴雨判断上，${names} 并列最高。`,
+    listSep:"、",
     betterThanBase:(w)=>`👉 此地点 <b class="${w.cls}">${w.name}</b> 比目前天气预报用的模式 ECMWF IFS 9km 更准 — 可考虑为此农户改用。`,
     baseIsBest:"目前天气预报用的模式 ECMWF IFS 9km 在此地点已是最准 — 无需更换。",
     dualnote:"两个分数回答不同问题：平均误差＝雨量信得过多少；晴雨命中＝它说「无雨」时信得过多少。",
@@ -475,7 +494,7 @@ const I18N = {
     guideSections:[
       { h:"这个 App 做什么？", p:"你平时用的天气 App，背后其实是某一个「天气模式」在算。世界上有好几个国家各自做了自己的模式，对同一个地方、同一天的雨量，它们的预报可能差很多。这个 App 把多个模式对你果园的雨量预报，跟事后的实际雨量比一比，找出哪个模式在你这里最准。" },
       { h:"什么是「天气模式」？", p:"就是一套超级电脑跑的天气计算程序。气象局把今天的大气状况（温度、湿度、风…）输入进去，电脑往后推算未来几天的天气。不同国家用不同的程序和超级电脑，所以结果不一样——就像不同厨师用同样的食材，做出来的味道不同。" },
-      { h:"六个模式是谁？", p:"IFS 9km＝欧洲中期预报中心（ECMWF），公认全球最准之一，也是你目前广播用的。ICON＝德国气象局。JMA＝日本气象厅，擅长热带亚洲。CMA＝中国气象局，邻近、覆盖好。GEM＝加拿大。GFS＝美国，历史最长、最稳定。选 1 到 6 个一起比。" },
+      { h:"六个模式是谁？", p:"每个都是某个国家气象局跑的全球预报模式，覆盖马来西亚、降水数据可靠：<br><br><b>IFS 9km</b>＝欧洲中期预报中心（ECMWF），分辨率约 9 公里，公认全球最准之一，也是你目前广播在用的。<br><b>ICON</b>＝德国气象局（DWD），约 11 公里，欧洲主力模式。<br><b>JMA</b>＝日本气象厅，对热带亚洲经验深、表现稳。<br><b>CMA</b>＝中国气象局，地理上最邻近、覆盖好。<br><b>GEM</b>＝加拿大环境部，全球模式，作为对照。<br><b>GFS</b>＝美国 NOAA，存档历史最长、最稳定。<br><br>选 1 到 6 个一起比。AI 模式（GraphCast、AIFS）不在内——它们的降水数据在 Open-Meteo 上不可用。" },
       { h:"两个主要分数", p:"「平均误差」＝预报的雨量数字差多少毫米（越小越准）。「晴雨命中」＝判断「那天有没有下雨」对的比率（越高越准）。一个看雨量多少，一个看到底下不下——两者不一样，有的模式雨量准但晴雨判断差，反之亦然。" },
       { h:"排名 #1 #2 …", p:"每张卡片上，两个分数旁各有一个名次（#1 最好）。绿色 #1 表示该项最准。若几个模式同分，会并列同名次。这样一眼就看出谁强在雨量、谁强在晴雨判断。" },
       { h:"「偏多 / 偏少」", p:"在平均误差下面。「偏多」＝这个模式倾向报得比实际多雨；「偏少」＝倾向报得比实际少。对榴莲很重要：报少雨（偏少）会让你措手不及，报多雨（偏多）顶多是虚惊一场。" },
@@ -492,15 +511,18 @@ const I18N = {
     gps:"Use my GPS", save:"Save location", data:"Data", sync:"Update records", exportCsv:"Export CSV (raw data)",
     foot:"Forecasts: ECMWF IFS 9km · DWD ICON · JMA GSM · Actual: ERA5 reanalysis · CC BY 4.0",
     langBtn:"EN",
-    emptyLoc:"Tap ＋ (top right) to add your first orchard", emptyLocBig:"📍", filterPlaceholder:"Search orchards…", noMatch:"No matching orchards",
+    emptyLoc:"Tap ＋ (top right) to add your first orchard", emptyLocBig:"📍", filterPlaceholder:"Search orchards…", noMatch:"No matching orchards", ungrouped:"Other",
     pickLoc:"Pick a location above to see its scorecard", noData:"No records yet — tap Update records",
     how:"Each time you open the app it logs what every model forecast for today, and back-fills any missed days from the last 7 days of archive. Actual rain is filled from ERA5 reanalysis (about 5 days behind).",
     mae:"Avg miss", maeUnit:"mm/day", hit:"Dry/wet calls", hitUnit:"correct",
     days:"days", winner:"best", tie:"tie", baseline:"broadcast now",
     bestAmt:(w)=>`On rain amount, <b class="${w.cls}">${w.name}</b> was closest this month.`,
     bestHit:(w)=>`On calling rain vs dry, <b class="${w.cls}">${w.name}</b> got the most right.`,
-    tieAmt:"On rain amount, the models were level this month.",
-    tieHit:"On dry/wet calls, the models were level.",
+    tieAmt:"On rain amount, the models were very close this month.",
+    tieHit:"On dry/wet calls, the models were very close.",
+    coLeadAmt:(names)=>`On rain amount, ${names} tied as closest.`,
+    coLeadHit:(names)=>`On dry/wet calls, ${names} tied for the most right.`,
+    listSep:", ",
     betterThanBase:(w)=>`👉 At this spot <b class="${w.cls}">${w.name}</b> beats the IFS 9km you broadcast now — worth switching this farmer.`,
     baseIsBest:"The IFS 9km you broadcast now is already best here — no change needed.",
     dualnote:"The two scores answer different questions: Avg miss = how much to trust the amount; Dry/wet calls = how much to trust it when it says “dry”.",
@@ -541,7 +563,7 @@ const I18N = {
     guideSections:[
       { h:"What this app does", p:"The weather app on your phone is really just one \"weather model\" doing the maths behind the scenes. Several countries each built their own model, and for the same place on the same day they can predict quite different rainfall. This app compares several models' rain forecasts for your orchard against what actually fell, to find which one is most accurate where you are." },
       { h:"What is a \"weather model\"?", p:"It's a giant computer program run on a supercomputer. A weather agency feeds in today's conditions (temperature, humidity, wind…) and the computer calculates the next few days. Different countries use different programs and supercomputers, so they get different answers — like different cooks making different dishes from the same ingredients." },
-      { h:"Who are the six models?", p:"IFS 9km = ECMWF (Europe), widely rated the most accurate in the world, and the one your broadcast uses now. ICON = Germany's service. JMA = Japan, strong for tropical Asia. CMA = China, a close neighbour with good coverage. GEM = Canada. GFS = USA, the longest, most stable record. Pick any 1 to 6 to compare." },
+      { h:"Who are the six models?", p:"Each is a global forecast model run by a national weather service, all covering Malaysia with reliable rainfall data:<br><br><b>IFS 9km</b> = ECMWF (Europe), about 9 km resolution, widely rated among the most accurate in the world — and the one your broadcast uses now.<br><b>ICON</b> = Germany's service (DWD), about 11 km, Europe's main model.<br><b>JMA</b> = Japan's weather agency, with deep experience and steady performance in tropical Asia.<br><b>CMA</b> = China's weather service, the closest neighbour geographically, with good coverage.<br><b>GEM</b> = Environment Canada's global model, useful as a cross-check.<br><b>GFS</b> = USA's NOAA, the longest and most stable archive.<br><br>Pick any 1 to 6 to compare. The AI models (GraphCast, AIFS) aren't included — their rainfall data isn't usable on Open-Meteo." },
       { h:"The two main scores", p:"\"Avg miss\" = how many mm the forecast was off by (lower is better). \"Dry/wet calls\" = how often it got \"did it rain that day or not\" right (higher is better). One is about how much rain, the other about whether it rains at all — a model can be good at one and poor at the other." },
       { h:"The ranks #1 #2 …", p:"On each card, both scores carry a rank (#1 is best). A green #1 means best on that score. If models tie, they share a rank. This shows at a glance which model is strong on amount versus which is strong on dry/wet calls." },
       { h:"\"Too wet / too dry\"", p:"Shown under Avg miss. \"Too wet\" = the model tends to predict more rain than falls; \"too dry\" = it predicts less. This matters for durian: a model that runs too dry can leave you caught out in real rain, while one that runs too wet is just a false alarm." },
@@ -565,118 +587,166 @@ let state = load();
    GPS we hold from the WeatherNext build records (Bera District, Miketam, Ren/Twin).
    Edit or extend SEED_FARMS to add more once you have their coordinates. */
 const SEED_FARMS = [
-  ["Sg. Ruan - Fang Goo 双溪兰 - 晓方",3.77883,101.94133],
-  ["Sg. Klau - Fang Goo 双溪吉流 - 晓方",3.71967,102.01033],
-  ["Sg. Klau 1 - CT Tan 双溪吉流 1 - CT Tan",3.717,102.0055],
-  ["Kg. Sg. Ruan - Neng 双溪兰 - 能",3.79361,101.93472],
-  ["Kg. Sg. Ruan - Jerry Phoon 双溪兰新村 - Jerry",3.79194,101.94278],
-  ["Sg. Klau - Kwong Seng 双溪吉流 - Kwong Seng",3.74833,101.95133],
-  ["Sg. Klau 2 - CT Tan 双溪吉流 2 - CT Tan",3.74417,101.96917],
-  ["Kg. Sg. Klau - Thompson 双溪吉流新村 - Thompso",3.7475,101.97694],
-  ["Kg. Sg. Klau - Soon 双溪吉流新村 - 顺",3.78392,101.98063],
-  ["Kampung Temau - Eric 甘榜德茂 - Eric",3.929,101.921],
-  ["Ulu Gali 乌鲁加里",3.84478,101.95747],
-  ["Kg. Gali 甘榜加里",3.83333,101.9],
-  ["Jerkoh 日利谷",4.04861,101.92028],
-  ["SJKC Cheroh 积罗国民型华文学校",3.90293,101.81499],
-  ["Kampung Temau - MK 甘榜德茂 - MK",3.917778,101.919444],
-  ["Dong - Hong 东区 - 鸿总",4.090556,101.966111],
-  ["Ulu Gali - Jacky Kuan 乌鲁加里 - Jacky Kuan",3.834694,101.911833],
-  ["Raub Batu Tiga - James Lye 劳勿三英里 - James",3.79275,101.903889],
-  ["Ringlet 冷力",4.41453,101.38415],
-  ["Bertam Valley 伯坦谷",4.397,101.381],
-  ["Habu 哈布",4.44011,101.38921],
-  ["Tanah Rata 丹那拉打",4.47135,101.37565],
-  ["Brinchang 碧兰璋",4.49223,101.38732],
-  ["Kea Farm 吉亚农场",4.50436,101.40734],
-  ["Tringkap 丁甲",4.51494,101.42771],
-  ["Kampung Raja 甘榜拉惹",4.56709,101.40968],
-  ["Blue Valley 蓝谷",4.58322,101.41243],
-  ["Sungai Palas 双溪巴拉斯",4.5225,101.367],
-  ["Cameron Valley 金马伦谷",4.4305,101.401],
-  ["Boh Tea Plantation BOH 茶园",4.52,101.37],
-  ["Kuala Terla Tea Estate 吉拉烈茶园",4.548,101.42],
-  ["Kampung Taman Sedia 草莓农场",4.458,101.384],
-  ["MARDI Cameron Highlands MARDI 农业站",4.4619,101.3838],
-  ["Mantin Tmn Permai Jaya 文丁 中华华文小学",2.81778,101.8925],
-  ["Mantin Andalas GIO GIO 文丁 湖滨花园",2.82639,101.88028],
-  ["MANTIN DALAM 文丁达南",2.806111,101.8875],
-  ["Spg. Durian (Kg. Mentaus) 1 新邦榴莲 Pitt-猫王",3.12,102.21972],
-  ["Spg. Durian (Kg. Mentaus) 2 新邦榴莲 SAM",3.11778,102.21944],
-  ["Titi 知知港",2.8167,102.0667],
-  ["Labis - Austin 拉美士 - Austin",2.42806,103.03639],
-  ["Segamat Buloh Kasap 昔加末 巫罗加什",2.527677,102.772178],
-  ["Chaah Baru 三合港",2.148561,103.052319],
-  ["Bekok 彼咯",2.305833,103.091389],
-  ["Jementah 利民达",2.433331,102.683331],
-  ["Tenang Hot Spring 丁能 热水池",2.481236,103.05805],
-  ["Machap Baru 马接峇鲁",2.38,102.35056],
-  ["Durian Tunggal Dam 榴梿洞葛水坝",2.3537,102.3161],
-  ["Kg. Simpang Tebing Tinggi 德宾丁宜新村",3.87467,102.34467],
-  ["Damak 达玛",3.949544,102.214385],
-  ["Bukit Seladang 友联港神山",3.91313,102.35476],
-  ["Bentong Kuala Repas 文冬兵营",3.55181,101.8852],
-  ["Bentong Happy Farm 农家乐",3.53333,101.88444],
-  ["Bentong Valley Agro Park 文冬山寨谷小舍",3.67438,101.8655],
-  ["Bentong Utara 文冬市北",3.52816,101.915014],
-  ["Bentong Bukit D.O 文冬老虎山",3.530986,101.910808],
-  ["Bentong Selatan 文冬市南",3.516833,101.897667],
-  ["Waterway Villa 水道别墅",3.44917,101.90056],
-  ["Kg. Benus 甘榜本努斯",3.50783,101.92667],
-  ["Tras 都赖",3.73622,101.80792],
-  ["Kampung Hulu Lebu 乌鲁乐布新村",3.57278,101.92611],
-  ["Kampung Lebu 甘榜乐布",3.616,101.933],
-  ["Sungai Ruan 双溪兰",3.8542814,101.9430543],
-  ["Borneo Spring 婆罗青泉",3.492,102.024],
-  ["Kg. Sungai Dua 甘榜双溪都亚",3.45972,102.0],
-  ["Kg. Cinta Manis 甘甜新村",3.453,102.031],
-  ["Kg. Troh 德乐新村",3.41194,102.07889],
-  ["The Valley 加叻幽谷",3.38389,102.02778],
-  ["100% ORGANIC DURI RIN 山本绫有机农场",3.45227,101.99607],
-  ["Manchis 文积",3.205,102.164],
-  ["Kg. Ponson - Gan Ming Keong 彭顺村 - 颜明强",3.229722,102.156111],
-  ["Batu 36 三十六碑",3.240556,102.141111],
-  ["Chenderiang 积莪营",4.256043,101.227729],
-  ["Sungkai 宋溪",3.978889,101.360278],
-  ["Diamond Creeks 钻石溪",3.7755,101.52567],
-  ["Tanjung Malim 丹绒马林",3.71778,101.55278],
-  ["Kampung Belengu 甘榜柏伦古",3.436161,102.294602],
-  ["Kampung Ketam 甘榜吉胆",3.54,102.36778],
-  ["Kampung Gantok 甘榜甘督",3.505847,102.360318],
-  ["Jambu Rias BIGWOOD 占布里亚斯 大木",3.467919,102.094837],
-  ["Lojing 罗京高原",4.7443608,101.6416756],
-  ["Kuala Krai 瓜拉吉赖",5.456499,102.3308],
-  ["Gua Musang 话望生",4.884279,101.968178],
-  ["Lubok Palaei 鲁柏巴莱",2.430879,111.947151],
-  ["Sibintek 西宾德",2.33837,112.08403],
-  ["Keningau 根地咬",5.35528,116.14472],
-  ["Kionsom 建山",5.99417,116.18222],
-  ["Mengkarak 明加叻",3.32,102.43],
-  ["Kemasul 金马苏",3.297,102.395],
-  ["Triang 直凉",3.248,102.417],
-  ["Palm Glove 直凉园 金河山庄",3.2305389,102.3951267],
-  ["Paya Lang 巴也郎",3.18194,102.43667],
-  ["Simpang Bukit Mendi 明光",3.165721,102.386012],
-  ["Bukit Mendi 武吉文迪",3.17474,102.350563],
-  ["Kemayan Taman Maju Jaya 金马扬 1",3.124265,102.363199],
-  ["Kemayan Taman Ixnora Jaya 金马扬 2",3.141841,102.363953],
-  ["Sungai Rui 双溪锐",3.09639,102.35861],
-  ["Lanchang (Durian) 联增",3.42925,102.13928],
-  ["Draha (Durian) 德拉哈",3.40339,102.283],
-  ["Jambu Rias 占布里亚斯",3.39956,102.14848],
-  ["Empresa 皇后园",3.36379,102.2608],
-  ["Mentakab 文德甲",3.37169,102.31093],
-  ["Mengkarak 明加叻",3.32936,102.31455],
-  ["Kuala Lipis 瓜拉立卑",4.124748,102.088034],
-  ["Kampung Chapu 甘榜查布",5.1775,102.895],
-  ["Kuala Berang 瓜拉伯浪",5.1725,102.53333],
-  ["Sungai Lembing 林明",3.85,103.03333],
+  ["Sg. Ruan - Fang Goo 双溪兰 - 晓方",3.77883,101.94133,"Raub 劳勿"],
+  ["Sg. Klau - Fang Goo 双溪吉流 - 晓方",3.71967,102.01033,"Raub 劳勿"],
+  ["Sg. Klau 1 - CT Tan 双溪吉流 1 - CT Tan",3.717,102.0055,"Raub 劳勿"],
+  ["Kg. Sg. Ruan - Neng 双溪兰 - 能",3.79361,101.93472,"Raub 劳勿"],
+  ["Kg. Sg. Ruan - Jerry Phoon 双溪兰新村 - Jerry",3.79194,101.94278,"Raub 劳勿"],
+  ["Sg. Klau - Kwong Seng 双溪吉流 - Kwong Seng",3.74833,101.95133,"Raub 劳勿"],
+  ["Sg. Klau 2 - CT Tan 双溪吉流 2 - CT Tan",3.74417,101.96917,"Raub 劳勿"],
+  ["Kg. Sg. Klau - Thompson 双溪吉流新村 - Thompso",3.7475,101.97694,"Raub 劳勿"],
+  ["Kg. Sg. Klau - Soon 双溪吉流新村 - 顺",3.78392,101.98063,"Raub 劳勿"],
+  ["Kampung Temau - Eric 甘榜德茂 - Eric",3.929,101.921,"Raub 劳勿"],
+  ["Ulu Gali 乌鲁加里",3.84478,101.95747,"Raub 劳勿"],
+  ["Kg. Gali 甘榜加里",3.83333,101.9,"Raub 劳勿"],
+  ["Jerkoh 日利谷",4.04861,101.92028,"Raub 劳勿"],
+  ["SJKC Cheroh 积罗国民型华文学校",3.90293,101.81499,"Raub 劳勿"],
+  ["Kampung Temau - MK 甘榜德茂 - MK",3.917778,101.919444,"Raub 劳勿"],
+  ["Dong - Hong 东区 - 鸿总",4.090556,101.966111,"Raub 劳勿"],
+  ["Ulu Gali - Jacky Kuan 乌鲁加里 - Jacky Kuan",3.834694,101.911833,"Raub 劳勿"],
+  ["Raub Batu Tiga - James Lye 劳勿三英里 - James",3.79275,101.903889,"Raub 劳勿"],
+  ["Ringlet 冷力",4.41453,101.38415,"Cameron 金马仑"],
+  ["Bertam Valley 伯坦谷",4.397,101.381,"Cameron 金马仑"],
+  ["Habu 哈布",4.44011,101.38921,"Cameron 金马仑"],
+  ["Tanah Rata 丹那拉打",4.47135,101.37565,"Cameron 金马仑"],
+  ["Brinchang 碧兰璋",4.49223,101.38732,"Cameron 金马仑"],
+  ["Kea Farm 吉亚农场",4.50436,101.40734,"Cameron 金马仑"],
+  ["Tringkap 丁甲",4.51494,101.42771,"Cameron 金马仑"],
+  ["Kampung Raja 甘榜拉惹",4.56709,101.40968,"Cameron 金马仑"],
+  ["Blue Valley 蓝谷",4.58322,101.41243,"Cameron 金马仑"],
+  ["Sungai Palas 双溪巴拉斯",4.5225,101.367,"Cameron 金马仑"],
+  ["Cameron Valley 金马伦谷",4.4305,101.401,"Cameron 金马仑"],
+  ["Boh Tea Plantation BOH 茶园",4.52,101.37,"Cameron 金马仑"],
+  ["Kuala Terla Tea Estate 吉拉烈茶园",4.548,101.42,"Cameron 金马仑"],
+  ["Kampung Taman Sedia 草莓农场",4.458,101.384,"Cameron 金马仑"],
+  ["MARDI Cameron Highlands MARDI 农业站",4.4619,101.3838,"Cameron 金马仑"],
+  ["Mantin Tmn Permai Jaya 文丁 中华华文小学",2.81778,101.8925,"NS9 森美兰"],
+  ["Mantin Andalas GIO GIO 文丁 湖滨花园",2.82639,101.88028,"NS9 森美兰"],
+  ["MANTIN DALAM 文丁达南",2.806111,101.8875,"NS9 森美兰"],
+  ["Spg. Durian (Kg. Mentaus) 1 新邦榴莲 Pitt-猫王",3.12,102.21972,"NS9 森美兰"],
+  ["Spg. Durian (Kg. Mentaus) 2 新邦榴莲 SAM",3.11778,102.21944,"NS9 森美兰"],
+  ["Titi 知知港",2.8167,102.0667,"NS9 森美兰"],
+  ["Labis - Austin 拉美士 - Austin",2.42806,103.03639,"Johor 柔佛"],
+  ["Segamat Buloh Kasap 昔加末 巫罗加什",2.527677,102.772178,"Johor 柔佛"],
+  ["Chaah Baru 三合港",2.148561,103.052319,"Johor 柔佛"],
+  ["Bekok 彼咯",2.305833,103.091389,"Johor 柔佛"],
+  ["Jementah 利民达",2.433331,102.683331,"Johor 柔佛"],
+  ["Tenang Hot Spring 丁能 热水池",2.481236,103.05805,"Johor 柔佛"],
+  ["Machap Baru 马接峇鲁",2.38,102.35056,"Melaka 马六甲"],
+  ["Durian Tunggal Dam 榴梿洞葛水坝",2.3537,102.3161,"Melaka 马六甲"],
+  ["Kg. Simpang Tebing Tinggi 德宾丁宜新村",3.87467,102.34467,"Jerantut 而连突"],
+  ["Damak 达玛",3.949544,102.214385,"Jerantut 而连突"],
+  ["Bukit Seladang 友联港神山",3.91313,102.35476,"Jerantut 而连突"],
+  ["Bentong Kuala Repas 文冬兵营",3.55181,101.8852,"Bentong 文冬"],
+  ["Bentong Happy Farm 农家乐",3.53333,101.88444,"Bentong 文冬"],
+  ["Bentong Valley Agro Park 文冬山寨谷小舍",3.67438,101.8655,"Bentong 文冬"],
+  ["Bentong Utara 文冬市北",3.52816,101.915014,"Bentong 文冬"],
+  ["Bentong Bukit D.O 文冬老虎山",3.530986,101.910808,"Bentong 文冬"],
+  ["Bentong Selatan 文冬市南",3.516833,101.897667,"Bentong 文冬"],
+  ["Waterway Villa 水道别墅",3.44917,101.90056,"Bentong 文冬"],
+  ["Kg. Benus 甘榜本努斯",3.50783,101.92667,"Bentong 文冬"],
+  ["Tras 都赖",3.73622,101.80792,"Bentong 文冬"],
+  ["Kampung Hulu Lebu 乌鲁乐布新村",3.57278,101.92611,"Bentong 文冬"],
+  ["Kampung Lebu 甘榜乐布",3.616,101.933,"Bentong 文冬"],
+  ["Sungai Ruan 双溪兰",3.8542814,101.9430543,"Bentong Team 团队"],
+  ["Bentong Kuala Repas 文冬兵营",3.55181,101.8852,"Bentong Team 团队"],
+  ["Bentong Happy Farm 农家乐",3.53333,101.88444,"Bentong Team 团队"],
+  ["Bentong Valley Agro Park 文冬山寨谷小舍",3.67438,101.8655,"Bentong Team 团队"],
+  ["Bentong Utara 文冬市北",3.52816,101.915014,"Bentong Team 团队"],
+  ["Bentong Bukit D.O 文冬老虎山",3.530986,101.910808,"Bentong Team 团队"],
+  ["Bentong Selatan 文冬市南",3.516833,101.897667,"Bentong Team 团队"],
+  ["Borneo Spring 婆罗青泉",3.492,102.024,"Karak 加叻"],
+  ["Kg. Sungai Dua 甘榜双溪都亚",3.45972,102.0,"Karak 加叻"],
+  ["Kg. Cinta Manis 甘甜新村",3.453,102.031,"Karak 加叻"],
+  ["Kg. Troh 德乐新村",3.41194,102.07889,"Karak 加叻"],
+  ["The Valley 加叻幽谷",3.38389,102.02778,"Karak 加叻"],
+  ["100% ORGANIC DURI RIN 山本绫有机农场",3.45227,101.99607,"Karak 加叻"],
+  ["Manchis 文积",3.205,102.164,"Manchis 文积"],
+  ["Kg. Ponson - Gan Ming Keong 彭顺村 - 颜明强",3.229722,102.156111,"Manchis 文积"],
+  ["Batu 36 三十六碑",3.240556,102.141111,"Manchis 文积"],
+  ["Chenderiang 积莪营",4.256043,101.227729,"Perak 霹雳"],
+  ["Sungkai 宋溪",3.978889,101.360278,"Perak 霹雳"],
+  ["Diamond Creeks 钻石溪",3.7755,101.52567,"Perak 霹雳"],
+  ["Tanjung Malim 丹绒马林",3.71778,101.55278,"Perak 霹雳"],
+  ["Kampung Belengu 甘榜柏伦古",3.436161,102.294602,"Pahang Central 彭亨中部"],
+  ["Kampung Ketam 甘榜吉胆",3.54,102.36778,"Pahang Central 彭亨中部"],
+  ["Kampung Gantok 甘榜甘督",3.505847,102.360318,"Pahang Central 彭亨中部"],
+  ["Jambu Rias BIGWOOD 占布里亚斯 大木",3.467919,102.094837,"Pahang Central 彭亨中部"],
+  ["Lojing 罗京高原",4.7443608,101.6416756,"Kelantan 吉兰丹"],
+  ["Kuala Krai 瓜拉吉赖",5.456499,102.3308,"Kelantan 吉兰丹"],
+  ["Gua Musang 话望生",4.884279,101.968178,"Kelantan 吉兰丹"],
+  ["Lubok Palaei 鲁柏巴莱",2.430879,111.947151,"Sabah/Sarawak 东马"],
+  ["Sibintek 西宾德",2.33837,112.08403,"Sabah/Sarawak 东马"],
+  ["Keningau 根地咬",5.35528,116.14472,"Sabah/Sarawak 东马"],
+  ["Kionsom 建山",5.99417,116.18222,"Sabah/Sarawak 东马"],
+  ["Mengkarak 明加叻",3.32,102.43,"Bera 百乐县"],
+  ["Kemasul 金马苏",3.297,102.395,"Bera 百乐县"],
+  ["Triang 直凉",3.248,102.417,"Bera 百乐县"],
+  ["Palm Glove 直凉园 金河山庄",3.2305389,102.3951267,"Bera 百乐县"],
+  ["Paya Lang 巴也郎",3.18194,102.43667,"Bera 百乐县"],
+  ["Simpang Bukit Mendi 明光",3.165721,102.386012,"Bera 百乐县"],
+  ["Bukit Mendi 武吉文迪",3.17474,102.350563,"Bera 百乐县"],
+  ["Kemayan Taman Maju Jaya 金马扬 1",3.124265,102.363199,"Bera 百乐县"],
+  ["Kemayan Taman Ixnora Jaya 金马扬 2",3.141841,102.363953,"Bera 百乐县"],
+  ["Sungai Rui 双溪锐",3.09639,102.35861,"Bera 百乐县"],
+  ["Lanchang (Durian) 联增",3.42925,102.13928,"Miketam 苏晓薇"],
+  ["Draha (Durian) 德拉哈",3.40339,102.283,"Miketam 苏晓薇"],
+  ["Jambu Rias 占布里亚斯",3.39956,102.14848,"Miketam 苏晓薇"],
+  ["Empresa 皇后园",3.36379,102.2608,"Miketam 苏晓薇"],
+  ["Mentakab 文德甲",3.37169,102.31093,"Miketam 苏晓薇"],
+  ["Mengkarak 明加叻",3.32936,102.31455,"Miketam 苏晓薇"],
+  ["Kuala Lipis 瓜拉立卑",4.124748,102.088034,"Miketam 苏晓薇"],
+  ["Kampung Chapu 甘榜查布",5.1775,102.895,"Desmond 陈联铕"],
+  ["Kuala Berang 瓜拉伯浪",5.1725,102.53333,"Desmond 陈联铕"],
+  ["Sungkai 宋溪",3.978889,101.360278,"Desmond 陈联铕"],
+  ["Tanjung Malim 丹绒马林",3.71778,101.55278,"Uncle Soon 順豪"],
+  ["Sungai Lembing 林明",3.85,103.03333,"Uncle Soon 順豪"],
 ];
+/* Seed version. Bump this whenever SEED_FARMS gains entries that existing installs
+   should receive. The migration below re-runs whenever the stored version is older,
+   adding only the genuinely new (name+region) pairings. */
+const SEED_VERSION = 5;  // v1: 106 · v2: dual-region · v3: Bentong Team · v4: Jerantut 中文 · v5: Miketam 中文
+
+/* Region label corrections for already-seeded installs: old string → new string.
+   Applied before the add-new step so renamed farms aren't re-added as duplicates. */
+const REGION_RENAMES = { "Jerantut": "Jerantut 而连突", "Miketam": "Miketam 苏晓薇" };
+
 if(!state.seeded && (!state.locations || state.locations.length===0)){
-  state.locations = SEED_FARMS.map(([name,lat,lon],i)=>({
-    id:"L"+Date.now().toString(36)+i.toString(36), name, lat, lon
+  state.locations = SEED_FARMS.map(([name,lat,lon,region],i)=>({
+    id:"L"+Date.now().toString(36)+i.toString(36), name, lat, lon, region
   }));
   state.seeded = true;
+  state.seedVersion = SEED_VERSION;
+  save();
+}
+
+/* Migration for already-seeded installs: rename any outdated region labels, add any
+   SEED_FARMS entry whose exact name+region pairing isn't present yet, and back-fill
+   the region tag onto older seeds that predate region grouping. Idempotent — the
+   name+region existence check means re-running never duplicates; the version gate
+   means it only does work when the seed set has changed. Never removes or touches
+   user-added farms. */
+if(state.seeded && state.locations && (state.seedVersion||0) < SEED_VERSION){
+  // rename outdated region labels (e.g. Jerantut → Jerantut 而连突)
+  for(const loc of state.locations){
+    if(loc.region && REGION_RENAMES[loc.region]) loc.region = REGION_RENAMES[loc.region];
+  }
+  // back-fill region onto any seeded farm that lacks it (match by coordinate)
+  for(const loc of state.locations){
+    if(loc.region) continue;
+    const hit = SEED_FARMS.find(([n,la,lo])=>
+      Math.abs(la-(+loc.lat))<1e-4 && Math.abs(lo-(+loc.lon))<1e-4);
+    if(hit) loc.region = hit[3];
+  }
+  // add any (name+region) seed entry not already present
+  const have = new Set(state.locations.map(l=>`${l.name}@@${l.region||""}`));
+  SEED_FARMS.forEach(([name,lat,lon,region],i)=>{
+    if(!have.has(`${name}@@${region}`)){
+      state.locations.push({ id:"Lm"+Date.now().toString(36)+i.toString(36), name, lat, lon, region });
+      have.add(`${name}@@${region}`);
+    }
+  });
+  state.seedVersion = SEED_VERSION;
   save();
 }
 let activeLoc = (state.locations.find(l=>!l.deleted)||{}).id || null;
@@ -913,15 +983,25 @@ function bestByMae(mae){
   const entries = MODELS().map(m=>[m.key, mae[m.key]]).filter(([k,v])=>v!=null);
   if(!entries.length) return null;
   entries.sort((a,b)=>a[1]-b[1]);
-  const tie = entries.length>1 && entries[0][1]===entries[1][1];
-  return { key:entries[0][0], tie, value:entries[0][1] };
+  const top = entries[0][1];
+  const leaders = entries.filter(([k,v])=>v===top).map(([k])=>k);
+  const tie = leaders.length>1;
+  // for MAE "level" means the best and worst are within ~0.5 mm/day
+  const spread = entries[entries.length-1][1] - top;
+  const allLevel = entries.length>1 && spread<=0.5;
+  return { key:entries[0][0], tie, leaders, value:top, allLevel };
 }
 function bestByHit(hit){
   const entries = MODELS().map(m=>[m.key, hit[m.key]]).filter(([k,v])=>v!=null);
   if(!entries.length) return null;
   entries.sort((a,b)=>b[1]-a[1]);
-  const tie = entries.length>1 && entries[0][1]===entries[1][1];
-  return { key:entries[0][0], tie, value:entries[0][1] };
+  const top = entries[0][1];
+  const leaders = entries.filter(([k,v])=>v===top).map(([k])=>k);  // all models sharing the top score
+  const tie = leaders.length>1;
+  // "all level" only when the spread is genuinely small (top vs bottom within 1 step)
+  const spread = top - entries[entries.length-1][1];
+  const allLevel = entries.length>1 && spread<=0.5;
+  return { key:entries[0][0], tie, leaders, value:top, allLevel };
 }
 function modelLabel(key){ return T().models[key] || key; }
 function modelCss(key){ const m=MODELS().find(x=>x.key===key); return m?m.cssVar:"--m1"; }
@@ -965,6 +1045,7 @@ function applyStaticText(){
 function activeLocs(){ return state.locations.filter(l=>!l.deleted); }
 function deletedLocs(){ return state.locations.filter(l=>l.deleted); }
 
+let expandedGroups = null;  // Set of expanded region names; null = not yet initialised
 function renderLocList(){
   const t=T(), box=$("#locList");
   const all = activeLocs();
@@ -975,32 +1056,92 @@ function renderLocList(){
     filterEl.placeholder = t.filterPlaceholder;
   }
   const q = (filterEl && filterEl.style.display!=="none" ? filterEl.value : "").trim().toLowerCase();
-  const live = q ? all.filter(l=>l.name.toLowerCase().includes(q)) : all;
+  const filtering = q.length>0;
+
   if(!all.length){
     box.innerHTML=`<div class="empty"><div class="big">${t.emptyLocBig}</div>${t.emptyLoc}</div>`;
     $("#syncCard").style.display = deletedLocs().length?"block":"none";
     if(!all.length && !deletedLocs().length) $("#syncCard").style.display="none";
-  } else {
-    $("#syncCard").style.display="block";
-    box.innerHTML="";
-    if(!live.length){
-      box.innerHTML=`<div class="empty" style="padding:18px">${t.noMatch}</div>`;
-    }
-    for(const loc of live){
-      const el=document.createElement("div");
-      el.className="loc"+(loc.id===activeLoc?" active":"");
-      el.innerHTML=`<div><div class="nm">${esc(loc.name)}</div>
-        <div class="co">${(+loc.lat).toFixed(4)}, ${(+loc.lon).toFixed(4)}</div></div>
-        <div class="loc-actions">
-          <button class="icon-btn" data-edit="${loc.id}" title="${t.edit}">✎</button>
-          <button class="icon-btn del" data-del="${loc.id}" title="${t.del}">🗑</button>
-        </div>`;
-      el.addEventListener("click",e=>{
-        if(e.target.dataset.edit!=null){ startEdit(loc.id); return; }
-        if(e.target.dataset.del!=null){ softDelLoc(loc.id); return; }
-        activeLoc=loc.id; renderAll();
+    renderBin(); return;
+  }
+  $("#syncCard").style.display="block";
+
+  // If few locations, keep the simple flat list (no grouping needed).
+  const useGroups = all.length>12;
+  const live = filtering ? all.filter(l=>l.name.toLowerCase().includes(q)) : all;
+
+  box.innerHTML="";
+  if(filtering && !live.length){
+    box.innerHTML=`<div class="empty" style="padding:18px">${t.noMatch}</div>`;
+    renderBin(); return;
+  }
+
+  const makeRow = (loc)=>{
+    const el=document.createElement("div");
+    el.className="loc"+(loc.id===activeLoc?" active":"");
+    el.innerHTML=`<div><div class="nm">${esc(loc.name)}</div>
+      <div class="co">${(+loc.lat).toFixed(4)}, ${(+loc.lon).toFixed(4)}</div></div>
+      <div class="loc-actions">
+        <button class="icon-btn" data-edit="${loc.id}" title="${t.edit}">✎</button>
+        <button class="icon-btn del" data-del="${loc.id}" title="${t.del}">🗑</button>
+      </div>`;
+    el.addEventListener("click",e=>{
+      if(e.target.dataset.edit!=null){ startEdit(loc.id); return; }
+      if(e.target.dataset.del!=null){ softDelLoc(loc.id); return; }
+      activeLoc=loc.id;
+      if(loc.region && expandedGroups) expandedGroups.add(loc.region); // keep selection visible
+      renderAll();
+    });
+    return el;
+  };
+
+  if(!useGroups){
+    for(const loc of live) box.appendChild(makeRow(loc));
+    renderBin(); return;
+  }
+
+  // ----- grouped accordion -----
+  // group live locations by region (fallback bucket for any without one)
+  const groups = new Map();
+  for(const loc of live){
+    const g = loc.region || t.ungrouped;
+    if(!groups.has(g)) groups.set(g, []);
+    groups.get(g).push(loc);
+  }
+  // All regions start collapsed (so a big region never floods the screen). The
+  // group holding the active farm shows that farm's name in its header instead,
+  // so the selection stays visible without expanding. User taps control the rest.
+  if(expandedGroups===null) expandedGroups = new Set();
+
+  for(const [region, locs] of groups){
+    // expanded if filtering (to surface matches) or the user has tapped it open.
+    const open = filtering || expandedGroups.has(region);
+    const activeInGroup = locs.find(l=>l.id===activeLoc);
+    const hasActive = !!activeInGroup;
+
+    const head=document.createElement("div");
+    head.className="loc-group-h"+(open?" open":"")+(hasActive?" has-active":"");
+    // when collapsed AND holding the active farm, name that farm in the header
+    const activeTag = (!open && hasActive)
+      ? `<span class="lg-active">${esc(activeInGroup.name)}</span>` : "";
+    head.innerHTML=`<span class="lg-caret">${open?"▾":"▸"}</span>
+      <span class="lg-name">${esc(region)}</span>
+      ${activeTag}
+      <span class="lg-count">${locs.length}</span>`;
+    if(!filtering){
+      head.addEventListener("click",()=>{
+        if(expandedGroups.has(region)) expandedGroups.delete(region);
+        else expandedGroups.add(region);
+        renderLocList();
       });
-      box.appendChild(el);
+    }
+    box.appendChild(head);
+
+    if(open){
+      const wrap=document.createElement("div");
+      wrap.className="loc-group-body";
+      for(const loc of locs) wrap.appendChild(makeRow(loc));
+      box.appendChild(wrap);
     }
   }
   renderBin();
@@ -1080,14 +1221,28 @@ function renderVerdict(){
 
   // verdict lines
   const W=(key)=>({name:modelLabel(key), cls:cssClassFor(key)});
-  const amtLine = winMae.tie? t.tieAmt : t.bestAmt(W(winMae.key));
-  const hitLine = !winHit? "" : (winHit.tie? t.tieHit : t.bestHit(W(winHit.key)));
+  // join model names with the language's list separator
+  const joinNames = (keys)=> keys.map(k=>`<b class="${cssClassFor(k)}">${modelLabel(k)}</b>`).join(t.listSep);
+  // amount line
+  let amtLine;
+  if(winMae.allLevel) amtLine = t.tieAmt;                       // genuinely all close
+  else if(winMae.tie)  amtLine = t.coLeadAmt(joinNames(winMae.leaders));  // 2+ share the top
+  else                 amtLine = t.bestAmt(W(winMae.key));      // single winner
+  // dry/wet line
+  let hitLine = "";
+  if(winHit){
+    if(winHit.allLevel) hitLine = t.tieHit;
+    else if(winHit.tie) hitLine = t.coLeadHit(joinNames(winHit.leaders));
+    else                hitLine = t.bestHit(W(winHit.key));
+  }
 
   // baseline recommendation: does a non-IFS model beat IFS on amount?
   let baseLine = "";
   if(winMae && !winMae.tie){
     if(winMae.key==="ifs") baseLine = t.baseIsBest;
     else baseLine = t.betterThanBase(W(winMae.key));
+  } else if(winMae && winMae.tie && winMae.leaders.includes("ifs")){
+    baseLine = t.baseIsBest;  // IFS is among the joint winners → no need to switch
   }
 
   mount.innerHTML=`
@@ -1160,15 +1315,23 @@ function buildShareText(loc, sc){
   const winMae = bestByMae(sc.mae);
   const winHit = sc.hit? bestByHit(sc.hit) : null;
   const strip = s => s.replace(/<[^>]+>/g,"");
+  const plainNames = (keys)=> keys.map(k=>modelLabel(k)).join(t.listSep);
   if(winMae){
-    lines.push(strip(winMae.tie ? t.tieAmt : t.bestAmt({name:modelLabel(winMae.key),cls:""})));
+    if(winMae.allLevel) lines.push(strip(t.tieAmt));
+    else if(winMae.tie) lines.push(strip(t.coLeadAmt(plainNames(winMae.leaders))));
+    else lines.push(strip(t.bestAmt({name:modelLabel(winMae.key),cls:""})));
   }
   if(winHit){
-    lines.push(strip(winHit.tie ? t.tieHit : t.bestHit({name:modelLabel(winHit.key),cls:""})));
+    if(winHit.allLevel) lines.push(strip(t.tieHit));
+    else if(winHit.tie) lines.push(strip(t.coLeadHit(plainNames(winHit.leaders))));
+    else lines.push(strip(t.bestHit({name:modelLabel(winHit.key),cls:""})));
   }
-  if(winMae && !winMae.tie){
+  if(winMae && (!winMae.tie || winMae.leaders.includes("ifs"))){
     lines.push("");
-    lines.push(strip(winMae.key==="ifs" ? t.baseIsBest : t.betterThanBase({name:modelLabel(winMae.key),cls:""})));
+    if(winMae.key==="ifs" || (winMae.tie && winMae.leaders.includes("ifs")))
+      lines.push(strip(t.baseIsBest));
+    else
+      lines.push(strip(t.betterThanBase({name:modelLabel(winMae.key),cls:""})));
   }
   return lines.join("\n");
 }
