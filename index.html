@@ -135,6 +135,21 @@ input:focus,select:focus{outline:2px solid var(--rain);outline-offset:0}
 .vs3 .mcol .mname{font-size:12px}
 .mcol .metric{margin-top:9px}
 .mcol .mlabel{font-size:9.5px;text-transform:uppercase;letter-spacing:.4px;color:var(--ink2)}
+.rankb{display:inline-block;font-size:9px;font-weight:800;letter-spacing:0;
+  background:var(--line);color:var(--ink);border-radius:5px;padding:1px 4px;margin-left:3px;
+  vertical-align:middle}
+.rankb.r1{background:var(--win);color:#06121b}
+/* confidence pill in verdict header */
+.conf{display:inline-block;font-size:10px;font-weight:700;border-radius:5px;
+  padding:1px 6px;margin-left:6px;vertical-align:middle}
+.conf-low{background:rgba(227,168,87,.18);color:#e3a857}
+.conf-mid{background:rgba(74,168,216,.18);color:#6db3f0}
+.conf-high{background:rgba(123,216,143,.18);color:#7bd88f}
+/* sub-metrics under each value */
+.subm{margin-top:3px;font-size:10px;line-height:1.3}
+.bias.wet{color:#6db3f0} .bias.dry{color:#e3a857} .bias.zero{color:var(--ink2)}
+.errsplit{display:flex;flex-direction:column;gap:1px;align-items:center}
+.errsplit .miss{color:#f08fb0} .errsplit .fa{color:var(--ink2)}
 .mcol .mval{font-size:22px;font-weight:800;line-height:1.1;margin-top:1px;
   font-variant-numeric:tabular-nums}
 .vs3 .mcol .mval{font-size:19px}
@@ -341,7 +356,7 @@ footer{text-align:center;padding:18px 10px 8px;font-size:11px;color:var(--ink2)}
 
 const TZ = "Asia/Kuching";
 const STORE_KEY = "rainscore_lab_v1";
-const CACHE_TAG = "rainscore-lab-20260627-01";
+const CACHE_TAG = "rainscore-lab-20260627-03";
 const DRY_THRESHOLD = 1.0;   // mm — <1mm counts as a "dry day" (field-adjustable)
 const PREV_HOST = "https://previous-runs-api.open-meteo.com/v1/forecast";
 const ARCH_HOST = "https://archive-api.open-meteo.com/v1/archive";
@@ -418,6 +433,10 @@ const I18N = {
     shareWA:"📤 分享到 WhatsApp", copied:"已复制到剪贴板 ✓", shareFail:"分享失败",
     modelsLabel:"模式", pickTitle:"选择对比模式", pickHint:"选 1 到 6 个模式来对比（点选／取消，数字是显示顺序）。换模式后，新模式只会从最近 7 天开始有数据，往后逐日累积。",
     pickAtLeast:(n)=>`至少选 ${n} 个模式`, pickReadyN:(n)=>`已选 ${n} 个 · 可以保存 ✓`,
+    confLow:"样本太少", confMid:"参考", confHigh:"可靠",
+    biasWet:"偏多", biasDry:"偏少", biasNone:"无偏差",
+    missRain:"漏雨", falseAlarm:"空报",
+    missRainFull:"模型说无雨，实际有雨（危险）", falseAlarmFull:"模型说有雨，实际无雨（虚惊）",
     pickFull:(n)=>`最多选 ${n} 个 — 先取消一个`,
     cancel:"取消", save:"保存",
     previewTitle:"预览讯息", previewHint:"可在发送前修改或加上你的话：",
@@ -471,6 +490,10 @@ const I18N = {
     shareWA:"📤 Share to WhatsApp", copied:"Copied to clipboard ✓", shareFail:"Share failed",
     modelsLabel:"Models", pickTitle:"Choose models to compare", pickHint:"Pick 1 to 6 models to compare (tap to select/deselect; the number is display order). After switching, a new model only has data from the last 7 days and builds up daily from there.",
     pickAtLeast:(n)=>`Pick at least ${n} model`, pickReadyN:(n)=>`${n} selected · ready to save ✓`,
+    confLow:"too few days", confMid:"indicative", confHigh:"reliable",
+    biasWet:"too wet", biasDry:"too dry", biasNone:"no bias",
+    missRain:"missed", falseAlarm:"false",
+    missRainFull:"Model said dry, it rained (dangerous)", falseAlarmFull:"Model said rain, stayed dry (false alarm)",
     pickFull:(n)=>`Up to ${n} — deselect one first`,
     cancel:"Cancel", save:"Save",
     previewTitle:"Preview message", previewHint:"Edit or add your own note before sending:",
@@ -620,7 +643,12 @@ function scoreLocation(locId, n){
   const rows=[];
   const models = MODELS();
   // per-model accumulators
-  const acc = {}; models.forEach(m=>acc[m.key]={absSum:0, maeN:0, hits:0, hitN:0});
+  const acc = {}; models.forEach(m=>acc[m.key]={
+    absSum:0, maeN:0, hits:0, hitN:0,
+    biasSum:0,            // Σ(forecast − actual): + = runs wet, − = runs dry
+    missRain:0,           // model said dry, it actually rained (dangerous)
+    falseAlarm:0          // model said rain, it stayed dry (annoying)
+  });
   let anyCmp = 0;  // days where actual exists AND at least one model has a value
 
   for(const day of days){
@@ -635,26 +663,41 @@ function scoreLocation(locId, n){
         const err = Math.round((v - r.actual)*10)/10;
         row.errs[m.key] = err;
         acc[m.key].absSum += Math.abs(v - r.actual); acc[m.key].maeN++;
-        const hit = (v>=DRY_THRESHOLD) === (r.actual>=DRY_THRESHOLD);
+        acc[m.key].biasSum += (v - r.actual);
+        const fcWet = v>=DRY_THRESHOLD, actWet = r.actual>=DRY_THRESHOLD;
+        const hit = fcWet === actWet;
         row.hits[m.key] = hit;
         acc[m.key].hitN++; if(hit) acc[m.key].hits++;
+        if(!hit){
+          if(actWet && !fcWet) acc[m.key].missRain++;     // rained but model said dry
+          else if(!actWet && fcWet) acc[m.key].falseAlarm++; // dry but model said rain
+        }
       }
     }
     if(r.actual!=null && rowHasModel) anyCmp++;
     if(rowHasModel || r.actual!=null) rows.push(row);
   }
 
-  // build per-model MAE / hit% (null if that model has no comparable days)
-  const mae={}, hit={}; let haveMae=false, haveHit=false;
+  // build per-model measures (null if that model has no comparable days)
+  const mae={}, hit={}, bias={}, miss={}, falarm={}; let haveMae=false, haveHit=false;
   for(const m of models){
     const a=acc[m.key];
-    if(a.maeN){ mae[m.key]=Math.round(a.absSum/a.maeN*10)/10; haveMae=true; } else mae[m.key]=null;
-    if(a.hitN){ hit[m.key]=Math.round(a.hits/a.hitN*100); haveHit=true; } else hit[m.key]=null;
+    if(a.maeN){
+      mae[m.key]=Math.round(a.absSum/a.maeN*10)/10; haveMae=true;
+      bias[m.key]=Math.round(a.biasSum/a.maeN*10)/10;  // mean signed error
+    } else { mae[m.key]=null; bias[m.key]=null; }
+    if(a.hitN){
+      hit[m.key]=Math.round(a.hits/a.hitN*100); haveHit=true;
+      miss[m.key]=a.missRain; falarm[m.key]=a.falseAlarm;
+    } else { hit[m.key]=null; miss[m.key]=null; falarm[m.key]=null; }
   }
   return {
     rows,
     mae: haveMae? mae : null,
     hit: haveHit? hit : null,
+    bias: haveMae? bias : null,
+    miss: haveHit? miss : null,
+    falarm: haveHit? falarm : null,
     cmpN: anyCmp
   };
 }
@@ -677,6 +720,20 @@ function bestByHit(hit){
 }
 function modelLabel(key){ return T().models[key] || key; }
 function modelCss(key){ const m=MODELS().find(x=>x.key===key); return m?m.cssVar:"--m1"; }
+
+/* Dense rank of each model on a metric. dir="asc" → lower value is rank 1 (MAE);
+   dir="desc" → higher value is rank 1 (dry/wet). Ties share a rank (1,1,1,2…).
+   Returns { key: rankNumber }. Models with null values are omitted. */
+function rankBy(values, dir){
+  const entries = MODELS().map(m=>[m.key, values?values[m.key]:null]).filter(([k,v])=>v!=null);
+  entries.sort((a,b)=> dir==="asc" ? a[1]-b[1] : b[1]-a[1]);
+  const ranks={}; let rank=0, prev=null;
+  for(const [k,v] of entries){
+    if(prev===null || v!==prev){ rank++; prev=v; }
+    ranks[k]=rank;
+  }
+  return ranks;
+}
 
 /* ---------- rendering ---------- */
 const $ = s=>document.querySelector(s);
@@ -763,6 +820,9 @@ function renderVerdict(){
 
   const winMae = bestByMae(sc.mae);
   const winHit = sc.hit? bestByHit(sc.hit) : null;
+  // dense ranks: MAE lower-is-better, dry/wet higher-is-better
+  const maeRank = rankBy(sc.mae, "asc");
+  const hitRank = sc.hit ? rankBy(sc.hit, "desc") : {};
 
   // model columns
   let cols="";
@@ -771,15 +831,33 @@ function renderVerdict(){
     const maeWin = winMae && winMae.key===m.key && !winMae.tie;
     const maeVal = sc.mae[m.key]==null? "—" : sc.mae[m.key];
     const hitVal = (sc.hit && sc.hit[m.key]!=null)? sc.hit[m.key] : null;
+    const maeBadge = maeRank[m.key]? `<span class="rankb ${maeRank[m.key]===1?'r1':''}">#${maeRank[m.key]}</span>` : "";
+    const hitBadge = hitRank[m.key]? `<span class="rankb ${hitRank[m.key]===1?'r1':''}">#${hitRank[m.key]}</span>` : "";
+    // bias direction: + runs wet, − runs dry
+    const bz = sc.bias? sc.bias[m.key] : null;
+    const biasLine = (bz==null)? "" :
+      `<div class="subm">${bz>0?`<span class="bias wet">+${bz} ${t.biasWet}</span>`
+                          : bz<0?`<span class="bias dry">${bz} ${t.biasDry}</span>`
+                          : `<span class="bias zero">${t.biasNone}</span>`}</div>`;
+    // missed-rain vs false-alarm counts
+    const mr2 = sc.miss? sc.miss[m.key] : null;
+    const fa  = sc.falarm? sc.falarm[m.key] : null;
+    const errLine = (mr2==null && fa==null)? "" :
+      `<div class="subm errsplit">
+         <span class="miss" title="${t.missRainFull}">⚠ ${mr2||0} ${t.missRain}</span>
+         <span class="fa" title="${t.falseAlarmFull}">○ ${fa||0} ${t.falseAlarm}</span>
+       </div>`;
     cols += `
       <div class="mcol ${maeWin?'winner':''}" style="--mc:var(${m.cssVar})">
         ${maeWin?`<div class="crown">${t.winner}</div>`:''}
         <div class="mname" style="color:var(${m.cssVar})">${modelLabel(m.key)}</div>
         ${isBaseline?`<div class="basetag">${t.baseline}</div>`:'<div class="basetag">&nbsp;</div>'}
-        <div class="metric"><div class="mlabel">${t.mae}</div>
-          <div class="mval">${maeVal}<span class="munit"> ${t.maeUnit}</span></div></div>
-        ${hitVal!=null?`<div class="metric"><div class="mlabel">${t.hit}</div>
-          <div class="mval">${hitVal}<span class="munit">%</span></div></div>`:''}
+        <div class="metric"><div class="mlabel">${t.mae} ${maeBadge}</div>
+          <div class="mval">${maeVal}<span class="munit"> ${t.maeUnit}</span></div>
+          ${biasLine}</div>
+        ${hitVal!=null?`<div class="metric"><div class="mlabel">${t.hit} ${hitBadge}</div>
+          <div class="mval">${hitVal}<span class="munit">%</span></div>
+          ${errLine}</div>`:''}
       </div>`;
   }
 
@@ -799,7 +877,7 @@ function renderVerdict(){
   <div class="verdict">
     <div class="head">
       <div class="loc-nm">${esc(loc.name)}</div>
-      <div class="span">${sc.cmpN} ${t.days} · ${range}d</div>
+      <div class="span">${sc.cmpN} ${t.days} · ${range}d ${confidencePill(sc.cmpN)}</div>
     </div>
     <div class="vs vs3">${cols}</div>
     <div class="line">${amtLine}${hitLine?"<br>"+hitLine:""}</div>
@@ -809,6 +887,19 @@ function renderVerdict(){
   </div>`;
   const sb=$("#btnShare");
   if(sb) sb.addEventListener("click", ()=>shareVerdict(loc, sc));
+}
+
+/* Confidence in the ranking, based on how many days have been scored. The dry/wet
+   metric especially needs ~2+ weeks before differences mean much. */
+function confidenceLevel(cmpN){
+  if(cmpN < 8)  return "low";
+  if(cmpN < 20) return "mid";
+  return "high";
+}
+function confidencePill(cmpN){
+  const t=T(), lvl=confidenceLevel(cmpN);
+  const label = lvl==="low"? t.confLow : lvl==="mid"? t.confMid : t.confHigh;
+  return `<span class="conf conf-${lvl}">${label}</span>`;
 }
 /* map a model key to its verdict-text colour class (defined inline below) */
 function cssClassFor(key){
