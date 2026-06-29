@@ -74,6 +74,9 @@ input:focus,select:focus{outline:2px solid var(--rain);outline-offset:0}
 .btn-primary{background:var(--rain);color:#06121b}
 .btn-ghost{background:var(--panel2);color:var(--ink);border:1px solid var(--line)}
 .btn-mini{padding:7px 12px;font-size:13px;border-radius:8px;width:auto;margin:0}
+.loc-filter{width:100%;box-sizing:border-box;background:var(--panel2);border:1px solid var(--line);
+  color:var(--ink);border-radius:9px;padding:9px 12px;font-size:14px;font-family:inherit;margin-bottom:10px}
+.loc-filter:focus{outline:2px solid var(--rain);outline-offset:0}
 .loc-list{display:flex;flex-direction:column;gap:8px}
 .loc{display:flex;align-items:center;gap:10px;background:var(--panel2);
   border:1px solid var(--line);border-radius:10px;padding:10px 12px;cursor:pointer}
@@ -309,6 +312,7 @@ footer{text-align:center;padding:18px 10px 8px;font-size:11px;color:var(--ink2)}
   <!-- LOCATIONS -->
   <div class="card">
     <h2 id="t_locations">Locations</h2>
+    <input type="text" id="locFilter" class="loc-filter" placeholder="" autocomplete="off" style="display:none">
     <div class="loc-list" id="locList"></div>
 
     <!-- add/edit form: hidden by default, opened from the header + button -->
@@ -376,7 +380,7 @@ footer{text-align:center;padding:18px 10px 8px;font-size:11px;color:var(--ink2)}
 
 const TZ = "Asia/Kuching";
 const STORE_KEY = "rainscore_lab_v1";
-const CACHE_TAG = "rainscore-lab-20260627-08";
+const CACHE_TAG = "rainscore-lab-20260627-10";
 const DRY_THRESHOLD = 1.0;   // mm — <1mm counts as a "dry day" (field-adjustable)
 const PREV_HOST = "https://previous-runs-api.open-meteo.com/v1/forecast";
 const ARCH_HOST = "https://archive-api.open-meteo.com/v1/archive";
@@ -422,7 +426,7 @@ const I18N = {
     gps:"使用我的 GPS", save:"保存地点", data:"数据", sync:"更新记录", exportCsv:"导出 CSV 原始数据",
     foot:"预报：ECMWF IFS 9km · DWD ICON · JMA GSM · 实际：ERA5 再分析 · CC BY 4.0",
     langBtn:"中",
-    emptyLoc:"点右上角 ＋ 新增第一个果园地点", emptyLocBig:"📍",
+    emptyLoc:"点右上角 ＋ 新增第一个果园地点", emptyLocBig:"📍", filterPlaceholder:"搜索果园名…", noMatch:"没有符合的果园",
     pickLoc:"选择上方地点查看记分", noData:"尚无记录，点「更新记录」",
     how:"每次打开会记录各模型对「今天」的雨量预报，并用最近 7 天的存档自动补回遗漏的日子。实际雨量用 ERA5 再分析回填（约延迟 5 天）。",
     mae:"平均误差", maeUnit:"毫米/天", hit:"晴雨命中", hitUnit:"准确率",
@@ -488,7 +492,7 @@ const I18N = {
     gps:"Use my GPS", save:"Save location", data:"Data", sync:"Update records", exportCsv:"Export CSV (raw data)",
     foot:"Forecasts: ECMWF IFS 9km · DWD ICON · JMA GSM · Actual: ERA5 reanalysis · CC BY 4.0",
     langBtn:"EN",
-    emptyLoc:"Tap ＋ (top right) to add your first orchard", emptyLocBig:"📍",
+    emptyLoc:"Tap ＋ (top right) to add your first orchard", emptyLocBig:"📍", filterPlaceholder:"Search orchards…", noMatch:"No matching orchards",
     pickLoc:"Pick a location above to see its scorecard", noData:"No records yet — tap Update records",
     how:"Each time you open the app it logs what every model forecast for today, and back-fills any missed days from the last 7 days of archive. Actual rain is filled from ERA5 reanalysis (about 5 days behind).",
     mae:"Avg miss", maeUnit:"mm/day", hit:"Dry/wet calls", hitUnit:"correct",
@@ -554,6 +558,127 @@ const T = ()=>I18N[LANG];
 
 /* ---------- state ---------- */
 let state = load();
+
+/* One-time seed: pre-load the verified WeatherNext farms so testers don't have to
+   type coordinates. Only fires if the location list is empty AND seeding hasn't run
+   before (so deleting all farms doesn't re-seed). These 19 are the farms whose exact
+   GPS we hold from the WeatherNext build records (Bera District, Miketam, Ren/Twin).
+   Edit or extend SEED_FARMS to add more once you have their coordinates. */
+const SEED_FARMS = [
+  ["Sg. Ruan - Fang Goo 双溪兰 - 晓方",3.77883,101.94133],
+  ["Sg. Klau - Fang Goo 双溪吉流 - 晓方",3.71967,102.01033],
+  ["Sg. Klau 1 - CT Tan 双溪吉流 1 - CT Tan",3.717,102.0055],
+  ["Kg. Sg. Ruan - Neng 双溪兰 - 能",3.79361,101.93472],
+  ["Kg. Sg. Ruan - Jerry Phoon 双溪兰新村 - Jerry",3.79194,101.94278],
+  ["Sg. Klau - Kwong Seng 双溪吉流 - Kwong Seng",3.74833,101.95133],
+  ["Sg. Klau 2 - CT Tan 双溪吉流 2 - CT Tan",3.74417,101.96917],
+  ["Kg. Sg. Klau - Thompson 双溪吉流新村 - Thompso",3.7475,101.97694],
+  ["Kg. Sg. Klau - Soon 双溪吉流新村 - 顺",3.78392,101.98063],
+  ["Kampung Temau - Eric 甘榜德茂 - Eric",3.929,101.921],
+  ["Ulu Gali 乌鲁加里",3.84478,101.95747],
+  ["Kg. Gali 甘榜加里",3.83333,101.9],
+  ["Jerkoh 日利谷",4.04861,101.92028],
+  ["SJKC Cheroh 积罗国民型华文学校",3.90293,101.81499],
+  ["Kampung Temau - MK 甘榜德茂 - MK",3.917778,101.919444],
+  ["Dong - Hong 东区 - 鸿总",4.090556,101.966111],
+  ["Ulu Gali - Jacky Kuan 乌鲁加里 - Jacky Kuan",3.834694,101.911833],
+  ["Raub Batu Tiga - James Lye 劳勿三英里 - James",3.79275,101.903889],
+  ["Ringlet 冷力",4.41453,101.38415],
+  ["Bertam Valley 伯坦谷",4.397,101.381],
+  ["Habu 哈布",4.44011,101.38921],
+  ["Tanah Rata 丹那拉打",4.47135,101.37565],
+  ["Brinchang 碧兰璋",4.49223,101.38732],
+  ["Kea Farm 吉亚农场",4.50436,101.40734],
+  ["Tringkap 丁甲",4.51494,101.42771],
+  ["Kampung Raja 甘榜拉惹",4.56709,101.40968],
+  ["Blue Valley 蓝谷",4.58322,101.41243],
+  ["Sungai Palas 双溪巴拉斯",4.5225,101.367],
+  ["Cameron Valley 金马伦谷",4.4305,101.401],
+  ["Boh Tea Plantation BOH 茶园",4.52,101.37],
+  ["Kuala Terla Tea Estate 吉拉烈茶园",4.548,101.42],
+  ["Kampung Taman Sedia 草莓农场",4.458,101.384],
+  ["MARDI Cameron Highlands MARDI 农业站",4.4619,101.3838],
+  ["Mantin Tmn Permai Jaya 文丁 中华华文小学",2.81778,101.8925],
+  ["Mantin Andalas GIO GIO 文丁 湖滨花园",2.82639,101.88028],
+  ["MANTIN DALAM 文丁达南",2.806111,101.8875],
+  ["Spg. Durian (Kg. Mentaus) 1 新邦榴莲 Pitt-猫王",3.12,102.21972],
+  ["Spg. Durian (Kg. Mentaus) 2 新邦榴莲 SAM",3.11778,102.21944],
+  ["Titi 知知港",2.8167,102.0667],
+  ["Labis - Austin 拉美士 - Austin",2.42806,103.03639],
+  ["Segamat Buloh Kasap 昔加末 巫罗加什",2.527677,102.772178],
+  ["Chaah Baru 三合港",2.148561,103.052319],
+  ["Bekok 彼咯",2.305833,103.091389],
+  ["Jementah 利民达",2.433331,102.683331],
+  ["Tenang Hot Spring 丁能 热水池",2.481236,103.05805],
+  ["Machap Baru 马接峇鲁",2.38,102.35056],
+  ["Durian Tunggal Dam 榴梿洞葛水坝",2.3537,102.3161],
+  ["Kg. Simpang Tebing Tinggi 德宾丁宜新村",3.87467,102.34467],
+  ["Damak 达玛",3.949544,102.214385],
+  ["Bukit Seladang 友联港神山",3.91313,102.35476],
+  ["Bentong Kuala Repas 文冬兵营",3.55181,101.8852],
+  ["Bentong Happy Farm 农家乐",3.53333,101.88444],
+  ["Bentong Valley Agro Park 文冬山寨谷小舍",3.67438,101.8655],
+  ["Bentong Utara 文冬市北",3.52816,101.915014],
+  ["Bentong Bukit D.O 文冬老虎山",3.530986,101.910808],
+  ["Bentong Selatan 文冬市南",3.516833,101.897667],
+  ["Waterway Villa 水道别墅",3.44917,101.90056],
+  ["Kg. Benus 甘榜本努斯",3.50783,101.92667],
+  ["Tras 都赖",3.73622,101.80792],
+  ["Kampung Hulu Lebu 乌鲁乐布新村",3.57278,101.92611],
+  ["Kampung Lebu 甘榜乐布",3.616,101.933],
+  ["Sungai Ruan 双溪兰",3.8542814,101.9430543],
+  ["Borneo Spring 婆罗青泉",3.492,102.024],
+  ["Kg. Sungai Dua 甘榜双溪都亚",3.45972,102.0],
+  ["Kg. Cinta Manis 甘甜新村",3.453,102.031],
+  ["Kg. Troh 德乐新村",3.41194,102.07889],
+  ["The Valley 加叻幽谷",3.38389,102.02778],
+  ["100% ORGANIC DURI RIN 山本绫有机农场",3.45227,101.99607],
+  ["Manchis 文积",3.205,102.164],
+  ["Kg. Ponson - Gan Ming Keong 彭顺村 - 颜明强",3.229722,102.156111],
+  ["Batu 36 三十六碑",3.240556,102.141111],
+  ["Chenderiang 积莪营",4.256043,101.227729],
+  ["Sungkai 宋溪",3.978889,101.360278],
+  ["Diamond Creeks 钻石溪",3.7755,101.52567],
+  ["Tanjung Malim 丹绒马林",3.71778,101.55278],
+  ["Kampung Belengu 甘榜柏伦古",3.436161,102.294602],
+  ["Kampung Ketam 甘榜吉胆",3.54,102.36778],
+  ["Kampung Gantok 甘榜甘督",3.505847,102.360318],
+  ["Jambu Rias BIGWOOD 占布里亚斯 大木",3.467919,102.094837],
+  ["Lojing 罗京高原",4.7443608,101.6416756],
+  ["Kuala Krai 瓜拉吉赖",5.456499,102.3308],
+  ["Gua Musang 话望生",4.884279,101.968178],
+  ["Lubok Palaei 鲁柏巴莱",2.430879,111.947151],
+  ["Sibintek 西宾德",2.33837,112.08403],
+  ["Keningau 根地咬",5.35528,116.14472],
+  ["Kionsom 建山",5.99417,116.18222],
+  ["Mengkarak 明加叻",3.32,102.43],
+  ["Kemasul 金马苏",3.297,102.395],
+  ["Triang 直凉",3.248,102.417],
+  ["Palm Glove 直凉园 金河山庄",3.2305389,102.3951267],
+  ["Paya Lang 巴也郎",3.18194,102.43667],
+  ["Simpang Bukit Mendi 明光",3.165721,102.386012],
+  ["Bukit Mendi 武吉文迪",3.17474,102.350563],
+  ["Kemayan Taman Maju Jaya 金马扬 1",3.124265,102.363199],
+  ["Kemayan Taman Ixnora Jaya 金马扬 2",3.141841,102.363953],
+  ["Sungai Rui 双溪锐",3.09639,102.35861],
+  ["Lanchang (Durian) 联增",3.42925,102.13928],
+  ["Draha (Durian) 德拉哈",3.40339,102.283],
+  ["Jambu Rias 占布里亚斯",3.39956,102.14848],
+  ["Empresa 皇后园",3.36379,102.2608],
+  ["Mentakab 文德甲",3.37169,102.31093],
+  ["Mengkarak 明加叻",3.32936,102.31455],
+  ["Kuala Lipis 瓜拉立卑",4.124748,102.088034],
+  ["Kampung Chapu 甘榜查布",5.1775,102.895],
+  ["Kuala Berang 瓜拉伯浪",5.1725,102.53333],
+  ["Sungai Lembing 林明",3.85,103.03333],
+];
+if(!state.seeded && (!state.locations || state.locations.length===0)){
+  state.locations = SEED_FARMS.map(([name,lat,lon],i)=>({
+    id:"L"+Date.now().toString(36)+i.toString(36), name, lat, lon
+  }));
+  state.seeded = true;
+  save();
+}
 let activeLoc = (state.locations.find(l=>!l.deleted)||{}).id || null;
 let range = 30;
 
@@ -842,14 +967,25 @@ function deletedLocs(){ return state.locations.filter(l=>l.deleted); }
 
 function renderLocList(){
   const t=T(), box=$("#locList");
-  const live = activeLocs();
-  if(!live.length){
+  const all = activeLocs();
+  // show the filter box once the list gets long
+  const filterEl=$("#locFilter");
+  if(filterEl){
+    filterEl.style.display = all.length>12 ? "block" : "none";
+    filterEl.placeholder = t.filterPlaceholder;
+  }
+  const q = (filterEl && filterEl.style.display!=="none" ? filterEl.value : "").trim().toLowerCase();
+  const live = q ? all.filter(l=>l.name.toLowerCase().includes(q)) : all;
+  if(!all.length){
     box.innerHTML=`<div class="empty"><div class="big">${t.emptyLocBig}</div>${t.emptyLoc}</div>`;
     $("#syncCard").style.display = deletedLocs().length?"block":"none";
-    if(!live.length && !deletedLocs().length) $("#syncCard").style.display="none";
+    if(!all.length && !deletedLocs().length) $("#syncCard").style.display="none";
   } else {
     $("#syncCard").style.display="block";
     box.innerHTML="";
+    if(!live.length){
+      box.innerHTML=`<div class="empty" style="padding:18px">${t.noMatch}</div>`;
+    }
     for(const loc of live){
       const el=document.createElement("div");
       el.className="loc"+(loc.id===activeLoc?" active":"");
@@ -1612,6 +1748,7 @@ $("#btnCancelEdit").addEventListener("click",closeForm);
 $("#btnGps").addEventListener("click",useGps);
 $("#btnSync").addEventListener("click",()=>doSync(true));
 $("#btnExport").addEventListener("click",exportCSV);
+$("#locFilter").addEventListener("input",renderLocList);
 $("#rangeSeg").addEventListener("click",e=>{
   const b=e.target.closest("button"); if(!b) return;
   range=+b.dataset.r;
