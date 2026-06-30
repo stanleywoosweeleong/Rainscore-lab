@@ -91,6 +91,19 @@ input:focus,select:focus{outline:2px solid var(--rain);outline-offset:0}
   padding-left:8px;border-left:1px solid var(--line)}
 .lg-count{font-size:12px;font-weight:700;color:var(--ink2);background:var(--panel);
   border-radius:999px;padding:1px 9px;min-width:20px;text-align:center;margin-left:auto;flex-shrink:0}
+/* when a refresh button is present it takes the auto-margin; count sits snug after it */
+.loc-group-h .lg-refresh{margin-left:auto}
+.loc-group-h .lg-refresh ~ .lg-count{margin-left:8px}
+.lg-refresh{background:var(--panel);border:1px solid var(--line);color:var(--rain);
+  font-size:13px;font-weight:700;min-width:30px;height:25px;padding:0 8px;border-radius:999px;
+  cursor:pointer;flex-shrink:0;line-height:1;font-family:inherit}
+.lg-refresh:active{transform:scale(.94)}
+.lg-refresh.spinning{opacity:.85}
+.toast{position:fixed;left:50%;bottom:28px;transform:translateX(-50%) translateY(20px);
+  background:var(--panel2);color:var(--ink);border:1px solid var(--line);padding:11px 18px;
+  border-radius:10px;font-size:14px;font-weight:600;opacity:0;pointer-events:none;transition:.25s;
+  z-index:90;box-shadow:0 8px 24px rgba(0,0,0,.4);max-width:80vw;text-align:center}
+.toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
 .loc-group-h.open .lg-name{color:var(--rain)}
 .loc-group-body{display:flex;flex-direction:column;gap:8px;margin:2px 0 4px 10px;
   padding-left:8px;border-left:2px solid var(--line)}
@@ -396,7 +409,7 @@ footer{text-align:center;padding:18px 10px 8px;font-size:11px;color:var(--ink2)}
 
 const TZ = "Asia/Kuching";
 const STORE_KEY = "rainscore_lab_v1";
-const CACHE_TAG = "rainscore-lab-20260627-21";
+const CACHE_TAG = "rainscore-lab-20260627-22";
 const DRY_THRESHOLD = 1.0;   // mm — <1mm counts as a "dry day" (field-adjustable)
 const PREV_HOST = "https://previous-runs-api.open-meteo.com/v1/forecast";
 const ARCH_HOST = "https://archive-api.open-meteo.com/v1/archive";
@@ -442,7 +455,7 @@ const I18N = {
     gps:"使用我的 GPS", save:"保存地点", data:"数据", sync:"更新记录", exportCsv:"导出 CSV 原始数据",
     foot:"预报：ECMWF IFS 9km · DWD ICON · JMA GSM · 实际：ERA5 再分析 · CC BY 4.0",
     langBtn:"中",
-    emptyLoc:"点右上角 ＋ 新增第一个果园地点", emptyLocBig:"📍", filterPlaceholder:"搜索果园名…", noMatch:"没有符合的果园", ungrouped:"其他",
+    emptyLoc:"点右上角 ＋ 新增第一个果园地点", emptyLocBig:"📍", filterPlaceholder:"搜索果园名…", noMatch:"没有符合的果园", ungrouped:"其他", updateRegion:"更新此区所有果园", regionDone:(n)=>`已更新 ${n} 个果园`, regionDonePartial:(ok,n)=>`已更新 ${ok}/${n} 个（部分失败，可重试）`,
     pickLoc:"选择上方地点查看记分", noData:"尚无记录，点「更新记录」",
     how:"每次打开会记录各模型对「今天」的雨量预报，并用最近 7 天的存档自动补回遗漏的日子。实际雨量用 ERA5 再分析回填（约延迟 5 天）。",
     mae:"平均误差", maeUnit:"毫米/天", hit:"晴雨命中", hitUnit:"准确率",
@@ -511,7 +524,7 @@ const I18N = {
     gps:"Use my GPS", save:"Save location", data:"Data", sync:"Update records", exportCsv:"Export CSV (raw data)",
     foot:"Forecasts: ECMWF IFS 9km · DWD ICON · JMA GSM · Actual: ERA5 reanalysis · CC BY 4.0",
     langBtn:"EN",
-    emptyLoc:"Tap ＋ (top right) to add your first orchard", emptyLocBig:"📍", filterPlaceholder:"Search orchards…", noMatch:"No matching orchards", ungrouped:"Other",
+    emptyLoc:"Tap ＋ (top right) to add your first orchard", emptyLocBig:"📍", filterPlaceholder:"Search orchards…", noMatch:"No matching orchards", ungrouped:"Other", updateRegion:"Update all orchards in this region", regionDone:(n)=>`Updated ${n} orchards`, regionDonePartial:(ok,n)=>`Updated ${ok}/${n} (some failed, try again)`,
     pickLoc:"Pick a location above to see its scorecard", noData:"No records yet — tap Update records",
     how:"Each time you open the app it logs what every model forecast for today, and back-fills any missed days from the last 7 days of archive. Actual rain is filled from ERA5 reanalysis (about 5 days behind).",
     mae:"Avg miss", maeUnit:"mm/day", hit:"Dry/wet calls", hitUnit:"correct",
@@ -1124,16 +1137,24 @@ function renderLocList(){
     // when collapsed AND holding the active farm, name that farm in the header
     const activeTag = (!open && hasActive)
       ? `<span class="lg-active">${esc(activeInGroup.name)}</span>` : "";
+    const refreshBtn = open
+      ? `<button class="lg-refresh" title="${esc(t.updateRegion)}">↻</button>` : "";
     head.innerHTML=`<span class="lg-caret">${open?"▾":"▸"}</span>
       <span class="lg-name">${esc(region)}</span>
       ${activeTag}
+      ${refreshBtn}
       <span class="lg-count">${locs.length}</span>`;
     if(!filtering){
-      head.addEventListener("click",()=>{
+      head.addEventListener("click",(e)=>{
+        if(e.target.classList.contains("lg-refresh")) return;  // handled separately
         if(expandedGroups.has(region)) expandedGroups.delete(region);
         else expandedGroups.add(region);
         renderLocList();
       });
+    }
+    if(open){
+      const rb = head.querySelector(".lg-refresh");
+      if(rb) rb.addEventListener("click",(e)=>{ e.stopPropagation(); refreshRegion(region); });
     }
     box.appendChild(head);
 
@@ -1888,6 +1909,52 @@ async function doSync(force){
     setSyncStatus({synced:sc.cmpN});
     renderVerdict(); renderCharts(); renderTable();
   }catch(e){ setSyncStatus("syncErr"); }
+}
+
+/* Bulk-refresh every farm in one region. Each syncLocation already pools its per-model
+   requests at concurrency 2, so we run farms sequentially to keep total API load gentle
+   (a region can hold 18 farms × up to 6 models). Progress shows in the group header;
+   a toast reports the result. If the active farm was refreshed, its scorecard updates. */
+let _refreshingRegion=false;
+async function refreshRegion(region){
+  if(_refreshingRegion) return;
+  const t=T();
+  const farms = activeLocs().filter(l=>(l.region||t.ungrouped)===region);
+  if(!farms.length) return;
+  _refreshingRegion=true;
+  // find the header button for this region to show progress
+  let btn=null;
+  for(const b of document.querySelectorAll(".lg-refresh")){
+    const nm=b.parentElement && b.parentElement.querySelector(".lg-name");
+    if(nm && nm.textContent===region){ btn=b; break; }
+  }
+  if(btn){ btn.classList.add("spinning"); }
+  let done=0, failed=0;
+  const setProg=()=>{ if(btn) btn.textContent=`${done}/${farms.length}`; };
+  setProg();
+  for(const loc of farms){
+    try{ await syncLocation(loc, range, null, false); }
+    catch(e){ failed++; }
+    done++; setProg();
+  }
+  _refreshingRegion=false;
+  // if the active farm was in this region, refresh its scorecard
+  if(farms.some(l=>l.id===activeLoc)){
+    const sc=scoreLocation(activeLoc, range);
+    setSyncStatus({synced:sc.cmpN});
+    renderVerdict(); renderCharts(); renderTable();
+  }
+  renderLocList();
+  toast(failed ? t.regionDonePartial(done-failed, farms.length) : t.regionDone(farms.length));
+}
+
+/* lightweight toast */
+let _toastT=null;
+function toast(msg){
+  let el=document.getElementById("toast");
+  if(!el){ el=document.createElement("div"); el.id="toast"; el.className="toast"; document.body.appendChild(el); }
+  el.textContent=msg; el.classList.add("on");
+  clearTimeout(_toastT); _toastT=setTimeout(()=>el.classList.remove("on"),2600);
 }
 function useGps(){
   if(!navigator.geolocation){ setSyncStatus("gpsErr"); return; }
