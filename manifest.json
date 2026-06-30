@@ -1,6 +1,6 @@
 {
-  "name": "RainScore · 雨准",
-  "short_name": "RainScore",
+  "name": "RainScore Lab · 雨准实验",
+  "short_name": "RainScore Lab",
   "description": "Compare rainfall forecasts (Best Match vs ECMWF) against actual rain per location.",
   "start_url": "./index.html",
   "display": "standalone",
