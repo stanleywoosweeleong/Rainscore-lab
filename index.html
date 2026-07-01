@@ -478,7 +478,7 @@ footer{text-align:center;padding:18px 10px 8px;font-size:11px;color:var(--ink2)}
 
 const TZ = "Asia/Kuching";
 const STORE_KEY = "rainscore_lab_v1";
-const CACHE_TAG = "rainscore-lab-20260627-36";
+const CACHE_TAG = "rainscore-lab-20260627-37";
 const DRY_THRESHOLD = 1.0;   // mm — <1mm counts as a "dry day" (field-adjustable)
 const PREV_HOST = "https://previous-runs-api.open-meteo.com/v1/forecast";
 const ARCH_HOST = "https://archive-api.open-meteo.com/v1/archive";
@@ -584,7 +584,7 @@ const I18N = {
       { h:"「样本太少 / 参考 / 可靠」", p:"顶部的小标签。实际雨量（ERA5）约延迟 5 天，所以刚开始能比对的天数很少，排名会跳动、不可靠。少于 8 天＝样本太少；8–19 天＝参考；20 天以上＝可靠。等到「可靠」再下结论。" },
       { h:"怎么用", p:"果园已经<b>预先载入</b>（见下），<b>直接选一个来看就行</b>——不必自己添加。想加自己的果园也可以：点右上角 ＋（输入坐标或用 GPS）。点「模式」选要比的模式（1–6 个）。每天打开会自动记录当天预报，并用最近 7 天存档补回遗漏的日子。记录一天天累积，约一个月后最完整。想一次抓很多果园，用下面的「三种更新方式」。" },
       { h:"果园已预先载入", p:"App 已为你预载约 110 个果园地点（WeatherNext 大家庭的所有果园），<b>无需自己逐个添加</b>。地点按地区分组，点地区标题展开或收起。果园多时上方会出现搜索框，可按名字快速查找。你选中的果园所在地区，标题上会直接显示该果园名字，方便辨认。" },
-      { h:"三种更新方式", p:"<b>① 单个果园：</b>选中某果园后，点「更新记录」只刷新这一个（强制重新抓取当天数据）。<br><b>② 整个地区：</b>展开地区后，点标题右边的 <b>↻</b> 按钮，会依次更新该地区<b>所有</b>果园，按钮上显示进度（如 3/15）。<br><b>③ 全部果园（🚗 开车模式）：</b>点顶部 <b>🚗</b>，App 会慢慢地一个一个抓取全部 114 个果园，按钮上显示进度（如 47/114）。特意放慢速度以免触发限流；出门前按一下，开车到果园时差不多就抓完了。中途来电可再按一下暂停，回头再按继续（会接着抓、不重复）。已抓过的当天会自动跳过。<br><br>②③ 都会沿用当天缓存、对服务器友好；① 是强制刷新单个果园。" },
+      { h:"三种更新方式", p:"<b>① 单个果园：</b>选中某果园后，点「更新记录」只刷新这一个（强制重新抓取当天数据）。<br><b>② 整个地区：</b>展开地区后，点标题右边的 <b>↻</b> 按钮，会依次更新该地区<b>所有</b>果园，按钮上显示进度（如 3/15）。<br><b>③ 全部果园（🚗 开车模式）：</b>点顶部 <b>🚗</b>，App 会慢慢地一个一个抓取全部 114 个果园，按钮上显示进度（如 47/114）。特意放慢速度以免触发限流；出门前按一下，开车到果园时差不多就抓完了。中途来电可再按一下暂停，回头再按继续（会接着抓、不重复）。已抓过的当天会自动跳过。抓取时请让 App 保持在前台（屏幕会自动保持常亮）；若切到别的 App 或锁屏，系统会暂停网页，回来后可再按继续。<br><br>②③ 都会沿用当天缓存、对服务器友好；① 是强制刷新单个果园。" },
       { h:"🏆 结果卡：哪个模式赢 IFS", p:"点顶部 <b>🏆</b> 打开跨果园总结。它扫描全部果园，找出<b>哪些果园有别的模式稳定赢过 IFS 9km</b>（你目前广播用的）。<br><b>「可信」</b>一栏：只列出累积 ≥20 天、且在「雨量」和「晴雨判断」上都明显赢 IFS 的果园——可作为该地区换模式的依据。<br><b>「值得观察」</b>一栏：已领先但样本或幅度还不够，先看着。<br>每张卡片会用三个白话分数跟 IFS 对比：<b>接住雨（POD）</b>、<b>空报（FAR）</b>、<b>综合（CSI）</b>，并在底部教你「该不该换模式，看三件事」。<br><b>重要：</b>刚开始几乎全部果园都在「暂无数据 / 样本太少」，这是正常的——实际雨量 ERA5 延迟约 5 天，要每天用（或每天开车模式抓一次），约 3–4 周后才会陆续满 20 天、出现真正的结论。<b>千万别凭几天数据就换模式。</b>" },
       { h:"方法说明（技术）", p:"预报：Open-Meteo「Previous Runs」API 的 precipitation_previous_day1，即各模式在前一天对该日的 24 小时预报（前置时间固定为 24h）。逐时降水按 Asia/Kuching 本地日累加为日总量。实际：ERA5 再分析（archive-api），约延迟 5 天。注意 ERA5 本身是同化模式的网格估计，非实地雨量计，对热带对流性降雨有已知局限。「有雨」阈值＝1.0 mm/日。平均误差＝MAE；偏向＝平均带符号误差；漏雨／空报＝2×2 列联表的漏报与误报。样本少时差异未必有统计显著性——本 App 只给启发式可靠度标签，不做显著性检验。要自己分析可用「导出 Excel」。" },
     ],
@@ -655,7 +655,7 @@ const I18N = {
       { h:"\"Too few days / indicative / reliable\"", p:"The little tag at the top. Actual rain (ERA5) lags ~5 days, so early on there are very few scored days and the ranking jumps around. Under 8 days = too few; 8–19 = indicative; 20+ = reliable. Wait for \"reliable\" before drawing conclusions." },
       { h:"How to use it", p:"Orchards are already <b>pre-loaded</b> (see below), so <b>just pick one to view</b> — you don't have to add anything. You can still add your own: tap ＋ (top right) and enter coordinates or use GPS. Tap \"Models\" to choose which to compare (1–6). Each time you open the app it logs that day's forecast and back-fills the last 7 days. Records build up daily and are fullest after about a month. To fetch many orchards at once, use the \"Three ways to update\" below." },
       { h:"Your orchards are pre-loaded", p:"The app comes with ~110 orchards already loaded (every farm in the WeatherNext family), so <b>you don't have to add them yourself</b>. They're grouped by region — tap a region heading to expand or collapse it. When the list is long a search box appears on top to jump to a farm by name. The region holding your selected farm shows that farm's name right in its heading, so you can always see which one is active." },
-      { h:"Three ways to update", p:"<b>① One orchard:</b> with a farm selected, tap \"Update records\" to refresh just that one (a forced re-fetch of today's data).<br><b>② A whole region:</b> expand a region and tap the <b>↻</b> button on its heading to update <b>every</b> orchard in it, with progress shown on the button (e.g. 3/15).<br><b>③ All orchards (🚗 drive mode):</b> tap <b>🚗</b> at the top and the app slowly gathers all 114 orchards one by one, with progress on the button (e.g. 47/114). It's paced deliberately slowly to avoid rate limits — tap it before you leave and by the time you reach the orchard it's usually done. If a call interrupts, tap to pause and tap again to resume (it picks up where it left off, no double-fetching). Orchards already done today are skipped.<br><br>② and ③ reuse today's cache and are gentle on the server; ① is a forced refresh of a single orchard." },
+      { h:"Three ways to update", p:"<b>① One orchard:</b> with a farm selected, tap \"Update records\" to refresh just that one (a forced re-fetch of today's data).<br><b>② A whole region:</b> expand a region and tap the <b>↻</b> button on its heading to update <b>every</b> orchard in it, with progress shown on the button (e.g. 3/15).<br><b>③ All orchards (🚗 drive mode):</b> tap <b>🚗</b> at the top and the app slowly gathers all 114 orchards one by one, with progress on the button (e.g. 47/114). It's paced deliberately slowly to avoid rate limits — tap it before you leave and by the time you reach the orchard it's usually done. If a call interrupts, tap to pause and tap again to resume (it picks up where it left off, no double-fetching). Orchards already done today are skipped. Keep the app in the foreground while it runs (the screen stays awake automatically); if you switch to another app or lock the phone, the system pauses the page — just return and tap to resume.<br><br>② and ③ reuse today's cache and are gentle on the server; ① is a forced refresh of a single orchard." },
       { h:"🏆 Results card: which model beats IFS", p:"Tap <b>🏆</b> at the top to open the cross-orchard summary. It scans every orchard and finds <b>where another model reliably beats IFS 9km</b> (the one your broadcast uses).<br><b>\"Confident\"</b> lists only orchards with ≥20 days that beat IFS clearly on both rainfall amount and dry/wet calls — a fair basis for a regional model switch.<br><b>\"Worth watching\"</b> lists ones that lead but whose sample or margin is still thin.<br>Each card compares three plain-language scores against IFS: <b>Catches rain (POD)</b>, <b>False alarms (FAR)</b>, and <b>Overall (CSI)</b>, with a \"should you switch? look at three things\" helper at the bottom.<br><b>Important:</b> early on almost every orchard sits in \"no data / too few days\" — that's normal. Actual rain (ERA5) lags ~5 days, so you must use it daily (or run drive-mode once a day); after about 3–4 weeks orchards cross 20 days and real conclusions appear. <b>Never switch models on a handful of days.</b>" },
       { h:"Methodology (technical)", p:"Forecasts: Open-Meteo \"Previous Runs\" API, variable precipitation_previous_day1 — each model's 24-hour-ahead forecast for that day (lead time held constant at 24h). Hourly precip is summed to local-day totals on Asia/Kuching. Actuals: ERA5 reanalysis (archive-api), ~5-day lag. Note ERA5 is itself a model-assimilated gridded estimate, not a physical rain gauge, with known limitations for convective tropical rainfall. Wet-day threshold = 1.0 mm/day. Avg miss = MAE; bias = mean signed error; missed/false = the miss and false-alarm cells of the 2×2 contingency table. With small samples, differences may not be statistically significant — this app gives only a heuristic reliability tag, not a significance test. Use \"Export Excel\" to run your own analysis." },
     ],
@@ -2305,9 +2305,22 @@ async function fetchAllSlowly(){
   driveRunning = true; driveAbort = false;
   if(btn) btn.classList.add("driving");
 
-  // keep the screen awake during the run if the browser allows it (best-effort)
+  // Keep the screen awake for the whole run. iOS releases the wake lock whenever the
+  // page is hidden (app switch, notification, screen dim), and does NOT auto-reacquire —
+  // so we re-request it every time the page becomes visible again while driving.
   let wake=null;
-  try{ if(navigator.wakeLock) wake=await navigator.wakeLock.request("screen"); }catch(_){}
+  const acquireWake = async ()=>{
+    try{
+      if(navigator.wakeLock && driveRunning && document.visibilityState==="visible"){
+        wake = await navigator.wakeLock.request("screen");
+        // if the lock is dropped by the system, forget it so the next visibility gain re-acquires
+        wake.addEventListener && wake.addEventListener("release", ()=>{ wake=null; });
+      }
+    }catch(_){}
+  };
+  const onVis = ()=>{ if(document.visibilityState==="visible") acquireWake(); };
+  document.addEventListener("visibilitychange", onVis);
+  await acquireWake();
 
   let done = 0, failed = 0, skipped = 0;
   const setBadge = ()=>{ if(btn) btn.setAttribute("data-prog", `${done+skipped}/${all.length}`); };
@@ -2324,6 +2337,8 @@ async function fetchAllSlowly(){
       if(r && Object.keys(r).length>0) done++; else failed++;
     }catch(e){ failed++; }
     setBadge();
+    // if the wake lock was dropped while hidden and we're now visible again, restore it
+    if(!wake) await acquireWake();
     // refresh the active farm's scorecard live if it was just fetched
     if(loc.id===activeLoc){
       try{ const sc=scoreLocation(activeLoc,range); setSyncStatus({synced:sc.cmpN}); renderVerdict(); renderCharts(); renderTable(); }catch(_){}
@@ -2333,7 +2348,9 @@ async function fetchAllSlowly(){
   }
 
   driveRunning = false;
+  document.removeEventListener("visibilitychange", onVis);
   try{ if(wake) await wake.release(); }catch(_){}
+  wake=null;
   if(btn){ btn.classList.remove("driving"); btn.removeAttribute("data-prog"); }
   renderLocList();
   const t=T();
