@@ -1,0 +1,2385 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#1f2a37">
+<title>RainScore Lab · 雨准实验</title>
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="apple-touch-icon" sizes="180x180" href="icon-180.png">
+<link rel="apple-touch-icon" sizes="167x167" href="icon-167.png">
+<link rel="apple-touch-icon" sizes="152x152" href="icon-152.png">
+<link rel="apple-touch-icon" sizes="120x120" href="icon-120.png">
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="favicon-16.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="RainScore Lab">
+<style>
+:root{
+  --bg:#0f1620; --panel:#172230; --panel2:#1f2d3d; --ink:#e8eef5; --ink2:#9fb1c6;
+  --line:#2b3a4d; --rain:#4aa8d8; --bm:#5dd0c0; --ec:#e3a857; --win:#7bd88f;
+  --m1:#5dd0c0; --m2:#e3a857; --m3:#b48ee8; --m4:#6db3f0; --m5:#f08fb0; --m6:#9ad36b;
+  --bad:#e2715f; --warn:#e3b341; --shadow:rgba(0,0,0,.35);
+  --pad:16px;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;background:var(--bg);color:var(--ink);
+  font-family:"Segoe UI",system-ui,-apple-system,"Microsoft YaHei","PingFang SC",sans-serif;
+  font-size:16px;line-height:1.5}
+body{padding:env(safe-area-inset-top) 0 calc(env(safe-area-inset-bottom) + 8px)}
+.wrap{max-width:760px;margin:0 auto;padding:0 var(--pad)}
+header{display:flex;align-items:center;gap:6px;padding:14px var(--pad) 12px;
+  position:sticky;top:0;background:linear-gradient(180deg,var(--bg) 70%,transparent);z-index:20}
+.logo{display:flex;align-items:center;gap:7px;font-weight:700;letter-spacing:.3px;min-width:0;flex:0 1 auto}
+.logo .drop{font-size:21px;line-height:1;flex-shrink:0}
+.brand-text{display:flex;flex-direction:column;line-height:1.15;min-width:0;overflow:hidden}
+.logo .name{font-size:17px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.logo .sub{font-size:11px;color:var(--ink2);font-weight:500;letter-spacing:.2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.spacer{flex:1 0 6px}
+.lang{background:var(--panel2);border:1px solid var(--line);color:var(--ink);
+  border-radius:999px;padding:6px 10px;font-size:13px;font-weight:600;cursor:pointer;flex-shrink:0}
+.lang:active{transform:scale(.96)}
+/* blended secondary header buttons — transparent, muted, no competing fill */
+.ghost-lang{background:transparent;border:none;color:var(--ink2);font-weight:600;font-size:16px}
+.ghost-lang:hover{color:var(--ink)}
+.ghost-icon{background:transparent;border:none;color:var(--ink2);border-radius:999px;
+  width:34px;height:34px;font-size:19px;line-height:1;cursor:pointer;padding:0;flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;transition:color .12s,background .12s}
+.ghost-icon:hover{color:var(--ink);background:rgba(255,255,255,.05)}
+.ghost-icon:active{transform:scale(.92)}
+/* drive mode: button gently pulses while running, with a progress badge */
+#btnFetchAll{position:relative}
+#btnFetchAll.driving{color:var(--rain)}
+#btnFetchAll.driving svg, #btnFetchAll.driving{animation:drivePulse 1.4s ease-in-out infinite}
+@keyframes drivePulse{0%,100%{opacity:1}50%{opacity:.45}}
+#btnFetchAll.driving[data-prog]::after{content:attr(data-prog);position:absolute;
+  top:-6px;left:50%;transform:translateX(-30%);background:var(--rain);color:#fff;font-size:9px;font-weight:700;
+  line-height:1;padding:2px 5px;border-radius:999px;white-space:nowrap;animation:none;opacity:1;
+  box-shadow:0 1px 3px rgba(0,0,0,.35)}
+.add-btn{background:var(--rain);border:none;color:#06121b;border-radius:999px;
+  width:34px;height:34px;min-width:34px;font-size:21px;font-weight:700;line-height:1;cursor:pointer;flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;padding:0}
+.add-btn:active{transform:scale(.92)}
+.add-btn.on{background:var(--panel2);color:var(--ink);border:1px solid var(--line)}
+.form-panel{margin-top:12px;padding-top:14px;border-top:1px solid var(--line)}
+.form-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
+.form-head span{font-size:15px;font-weight:700}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;
+  padding:16px;margin:12px 0;box-shadow:0 1px 0 var(--shadow)}
+.card h2{margin:0 0 4px;font-size:14px;letter-spacing:.4px;color:var(--ink2);
+  text-transform:uppercase;font-weight:600}
+label.fld{display:block;font-size:13px;color:var(--ink2);margin:10px 0 4px}
+input,select{width:100%;background:var(--panel2);border:1px solid var(--line);
+  color:var(--ink);border-radius:9px;padding:11px 12px;font-size:15px;font-family:inherit}
+input:focus,select:focus{outline:2px solid var(--rain);outline-offset:0}
+.row{display:flex;gap:10px}
+.row>*{flex:1}
+.btn{display:block;width:100%;border:none;border-radius:10px;padding:13px;
+  font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;margin-top:12px}
+.btn:active{transform:scale(.985)}
+.btn-primary{background:var(--rain);color:#06121b}
+.btn-ghost{background:var(--panel2);color:var(--ink);border:1px solid var(--line)}
+.btn-mini{padding:7px 12px;font-size:13px;border-radius:8px;width:auto;margin:0}
+.loc-filter{width:100%;box-sizing:border-box;background:var(--panel2);border:1px solid var(--line);
+  color:var(--ink);border-radius:9px;padding:9px 12px;font-size:14px;font-family:inherit;margin-bottom:10px}
+.loc-filter:focus{outline:2px solid var(--rain);outline-offset:0}
+.loc-list{display:flex;flex-direction:column;gap:8px}
+/* region accordion */
+.loc-group-h{display:flex;align-items:center;gap:9px;cursor:pointer;user-select:none;
+  background:var(--panel2);border:1px solid var(--line);border-radius:9px;padding:11px 13px;
+  font-family:inherit;flex-wrap:wrap}
+.loc-group-h:active{transform:scale(.995)}
+.loc-group-h.has-active{border-color:var(--rain)}
+.lg-caret{color:var(--ink2);font-size:12px;width:12px;flex-shrink:0}
+.lg-name{font-size:14px;font-weight:600;color:var(--ink);flex-shrink:0}
+.lg-active{flex:1;min-width:0;font-size:12.5px;color:var(--rain);font-weight:600;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  padding-left:8px;border-left:1px solid var(--line)}
+.lg-count{font-size:12px;font-weight:700;color:var(--ink2);background:var(--panel);
+  border-radius:999px;padding:1px 9px;min-width:20px;text-align:center;margin-left:auto;flex-shrink:0}
+/* when a refresh button is present it takes the auto-margin; count sits snug after it */
+.loc-group-h .lg-refresh{margin-left:auto}
+.loc-group-h .lg-refresh ~ .lg-count{margin-left:8px}
+.lg-refresh{background:var(--panel);border:1px solid var(--line);color:var(--rain);
+  font-size:13px;font-weight:700;min-width:30px;height:25px;padding:0 8px;border-radius:999px;
+  cursor:pointer;flex-shrink:0;line-height:1;font-family:inherit}
+.lg-refresh:active{transform:scale(.94)}
+.lg-refresh.spinning{opacity:.85}
+.toast{position:fixed;left:50%;bottom:28px;transform:translateX(-50%) translateY(20px);
+  background:var(--panel2);color:var(--ink);border:1px solid var(--line);padding:11px 18px;
+  border-radius:10px;font-size:14px;font-weight:600;opacity:0;pointer-events:none;transition:.25s;
+  z-index:90;box-shadow:0 8px 24px rgba(0,0,0,.4);max-width:80vw;text-align:center}
+.toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
+.loc-group-h.open .lg-name{color:var(--rain)}
+.loc-group-body{display:flex;flex-direction:column;gap:8px;margin:2px 0 4px 10px;
+  padding-left:8px;border-left:2px solid var(--line)}
+.loc{display:flex;align-items:center;gap:10px;background:var(--panel2);
+  border:1px solid var(--line);border-radius:10px;padding:10px 12px;cursor:pointer}
+.loc.active{border-color:var(--rain);box-shadow:inset 0 0 0 1px var(--rain)}
+.loc .nm{font-weight:600;font-size:15px}
+.loc .co{font-size:12px;color:var(--ink2)}
+.loc .gap{margin-left:auto;font-size:11px;color:var(--warn)}
+.loc-actions{display:flex;gap:6px;margin-left:auto}
+.icon-btn{background:var(--panel);border:1px solid var(--line);color:var(--ink2);
+  border-radius:8px;padding:6px 9px;font-size:13px;cursor:pointer;font-family:inherit;line-height:1}
+.icon-btn:active{transform:scale(.92)}
+.icon-btn.del:hover{color:var(--bad);border-color:var(--bad)}
+.loc.deleted{opacity:.5}
+.loc.deleted .nm{text-decoration:line-through}
+.bin{margin-top:12px}
+.bin summary{color:var(--ink2);font-size:13px}
+.bin .loc{margin-top:8px}
+.purge-btn{background:rgba(226,113,95,.1);border:1px solid rgba(226,113,95,.35);
+  color:var(--bad);border-radius:8px;padding:8px 12px;font-size:12px;font-weight:600;
+  cursor:pointer;font-family:inherit;margin-top:8px;width:auto}
+.toast{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom) + 18px);
+  transform:translateX(-50%) translateY(20px);background:var(--panel2);
+  border:1px solid var(--line);color:var(--ink);padding:11px 16px;border-radius:10px;
+  font-size:13.5px;box-shadow:0 6px 24px var(--shadow);opacity:0;pointer-events:none;
+  transition:opacity .25s,transform .25s;z-index:50;max-width:90vw}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0);pointer-events:auto}
+.toast u{cursor:pointer;color:var(--rain);font-weight:700;margin-left:8px}
+.muted{color:var(--ink2);font-size:13px}
+.tiny{font-size:11.5px;color:var(--ink2)}
+
+/* verdict */
+.verdict{background:linear-gradient(135deg,#192634,#15202c);
+  border:1px solid var(--line);border-radius:16px;padding:18px 16px;margin:12px 0}
+.verdict .head{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}
+.verdict .head .loc-nm{font-size:17px;font-weight:700}
+.verdict .head .span{font-size:12px;color:var(--ink2)}
+.vs{display:grid;grid-template-columns:1fr auto 1fr;align-items:stretch;gap:10px}
+/* research build: flexible grid, up to 3 per row, wraps for 4-6 models */
+.vs3{display:grid;grid-template-columns:repeat(3,1fr);gap:7px}
+.basetag{font-size:9.5px;text-transform:uppercase;letter-spacing:.4px;color:var(--rain);
+  margin-top:2px;font-weight:600;min-height:13px}
+.baseline-rec{margin-top:12px;padding:10px 12px;border-radius:10px;
+  background:rgba(74,168,216,.1);border:1px solid rgba(74,168,216,.35);
+  font-size:13.5px;line-height:1.5;color:#bfe1f3}
+.baseline-rec b{font-weight:700}
+.m-slot1{color:var(--m1)} .m-slot2{color:var(--m2)} .m-slot3{color:var(--m3)}
+.m-slot4{color:var(--m4)} .m-slot5{color:var(--m5)} .m-slot6{color:var(--m6)}
+.verdict .line b[class^="m-slot"], .baseline-rec b[class^="m-slot"]{font-weight:700}
+.verdict .line b.m-slot1,.baseline-rec b.m-slot1{color:var(--m1)}
+.verdict .line b.m-slot2,.baseline-rec b.m-slot2{color:var(--m2)}
+.verdict .line b.m-slot3,.baseline-rec b.m-slot3{color:var(--m3)}
+.verdict .line b.m-slot4,.baseline-rec b.m-slot4{color:var(--m4)}
+.verdict .line b.m-slot5,.baseline-rec b.m-slot5{color:var(--m5)}
+.verdict .line b.m-slot6,.baseline-rec b.m-slot6{color:var(--m6)}
+.mcol{background:var(--panel2);border:1px solid var(--line);border-radius:12px;
+  padding:12px 6px;text-align:center;position:relative}
+.mcol.winner{border-color:var(--win);box-shadow:0 0 0 1px var(--win)}
+.mcol .mname{font-size:12.5px;font-weight:700;letter-spacing:.2px}
+.vs3 .mcol .mname{font-size:12px}
+.mcol .metric{margin-top:9px}
+.mcol .mlabel{font-size:9.5px;text-transform:uppercase;letter-spacing:.4px;color:var(--ink2)}
+.rankb{display:inline-block;font-size:9px;font-weight:800;letter-spacing:0;
+  background:var(--line);color:var(--ink);border-radius:5px;padding:1px 4px;margin-left:3px;
+  vertical-align:middle}
+.rankb.r1{background:var(--win);color:#06121b}
+/* confidence pill in verdict header */
+.conf{display:inline-block;font-size:10px;font-weight:700;border-radius:5px;
+  padding:1px 6px;margin-left:6px;vertical-align:middle}
+.conf-low{background:rgba(227,168,87,.18);color:#e3a857}
+.conf-mid{background:rgba(74,168,216,.18);color:#6db3f0}
+.conf-high{background:rgba(123,216,143,.18);color:#7bd88f}
+/* sub-metrics under each value */
+.subm{margin-top:3px;font-size:10px;line-height:1.3}
+.bias.wet{color:#6db3f0} .bias.dry{color:#e3a857} .bias.zero{color:var(--ink2)}
+.errsplit{display:flex;flex-direction:column;gap:1px;align-items:center}
+.errsplit .miss{color:#f08fb0} .errsplit .fa{color:var(--ink2)}
+/* charts */
+.charts-card{margin-top:14px}
+.charts-title{font-size:15px;font-weight:700;color:var(--ink);margin-bottom:4px}
+.chart-warn{font-size:11.5px;color:#e3a857;background:rgba(227,168,87,.12);
+  border-radius:8px;padding:7px 10px;margin:6px 0 10px}
+.chart-block{margin-top:16px}
+.chart-h{font-size:12.5px;font-weight:700;color:var(--ink);margin-bottom:2px}
+.chart-sub{font-size:10.5px;color:var(--ink2);margin-bottom:8px;line-height:1.4}
+.chartsvg{width:100%;height:auto;max-width:360px;display:block}
+.scatter-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.scatter-cell{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:6px 4px 2px;text-align:center}
+.scatter-name{font-size:10.5px;font-weight:700;margin-bottom:2px}
+.scattersvg{width:100%;height:auto;display:block}
+.chart-scroll-x{overflow-x:auto;-webkit-overflow-scrolling:touch}
+.timesvg{height:auto;display:block}
+@media(max-width:420px){ .scatter-grid{grid-template-columns:repeat(2,1fr)} }
+.mcol .mval{font-size:22px;font-weight:800;line-height:1.1;margin-top:1px;
+  font-variant-numeric:tabular-nums}
+.vs3 .mcol .mval{font-size:19px}
+.mcol .munit{font-size:10.5px;color:var(--ink2)}
+.mcol .crown{position:absolute;top:-11px;left:50%;transform:translateX(-50%);
+  background:var(--win);color:#06121b;font-size:10px;font-weight:800;
+  padding:2px 8px;border-radius:999px;letter-spacing:.4px}
+.vmid{display:flex;align-items:center;justify-content:center;color:var(--ink2);
+  font-size:13px;font-weight:700}
+.verdict .line{margin-top:14px;padding-top:13px;border-top:1px solid var(--line);
+  font-size:14.5px;line-height:1.45}
+.verdict .line b.bm{color:var(--bm)} .verdict .line b.ec{color:var(--ec)}
+.dualnote{margin-top:10px;font-size:12px;color:var(--ink2);line-height:1.5}
+.share-btn{display:block;width:100%;margin-top:14px;border:none;border-radius:10px;
+  padding:12px;font-size:14.5px;font-weight:700;cursor:pointer;font-family:inherit;
+  background:#1faa5a;color:#fff}
+.share-btn:active{transform:scale(.985)}
+/* models selector bar in the DATA card */
+.models-bar{display:flex;align-items:center;gap:10px;width:100%;margin-top:10px;
+  background:var(--panel2);border:1px solid var(--line);border-radius:10px;
+  padding:10px 12px;cursor:pointer;font-family:inherit;text-align:left}
+.models-bar:active{transform:scale(.995)}
+.models-bar-label{font-size:12px;color:var(--ink2);text-transform:uppercase;letter-spacing:.5px;flex-shrink:0}
+.models-bar-chips{display:flex;gap:6px;flex-wrap:wrap;flex:1}
+.mchip{font-size:12px;font-weight:700;border:1.5px solid;border-radius:999px;padding:2px 9px}
+.models-bar-edit{color:var(--ink2);font-size:15px;flex-shrink:0}
+/* picker list */
+.mp-list{display:flex;flex-direction:column;gap:8px;margin:4px 0 10px}
+.mp-item{display:flex;align-items:center;gap:11px;width:100%;background:var(--panel2);
+  border:1px solid var(--line);border-radius:10px;padding:13px 14px;cursor:pointer;
+  font-family:inherit;font-size:15px;color:var(--ink);text-align:left}
+.mp-item.on{border-color:var(--rain);background:rgba(74,168,216,.1)}
+.mp-item:active{transform:scale(.99)}
+.mp-check{width:20px;height:20px;border-radius:6px;border:1.5px solid var(--line);
+  display:flex;align-items:center;justify-content:center;font-size:13px;color:#06121b;
+  background:transparent;flex-shrink:0}
+.mp-item.on .mp-check{background:var(--rain);border-color:var(--rain)}
+.mp-name{flex:1;font-weight:600}
+.mp-order{width:22px;height:22px;border-radius:999px;background:var(--rain);color:#06121b;
+  font-size:12px;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.mp-note{font-size:12.5px;color:var(--ink2);text-align:center;margin-bottom:4px;min-height:18px}
+.mp-note.warn{color:#e3a857}
+.modal-ov{position:fixed;inset:0;background:rgba(6,12,20,.72);z-index:60;
+  display:flex;align-items:flex-end;justify-content:center;padding:0;
+  animation:fadeIn .18s ease}
+@media(min-width:560px){ .modal-ov{align-items:center;padding:20px} }
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+.modal{background:var(--panel);border:1px solid var(--line);
+  border-radius:16px 16px 0 0;width:100%;max-width:560px;padding:16px;
+  box-shadow:0 -8px 40px var(--shadow);max-height:88vh;overflow:auto;
+  animation:slideUp .22s ease}
+@media(min-width:560px){ .modal{border-radius:16px} }
+@keyframes slideUp{from{transform:translateY(24px)}to{transform:translateY(0)}}
+.modal-head{display:flex;align-items:center;justify-content:space-between;
+  font-size:16px;font-weight:700;margin-bottom:6px}
+.modal-hint{font-size:13px;color:var(--ink2);margin-bottom:10px;line-height:1.5}
+.modal-ta{width:100%;background:var(--panel2);border:1px solid var(--line);
+  color:var(--ink);border-radius:10px;padding:12px;font-size:14px;line-height:1.55;
+  font-family:inherit;resize:vertical;min-height:200px;white-space:pre-wrap}
+.modal-ta:focus{outline:2px solid var(--rain);outline-offset:0}
+.modal-actions{display:flex;gap:10px;margin-top:12px}
+/* results card */
+.res-body{overflow-y:auto;max-height:72vh;padding-right:2px}
+.res-intro{font-size:12.5px;color:var(--ink2);line-height:1.55;margin-bottom:14px}
+.res-status{font-size:12.5px;line-height:1.6;border-radius:10px;padding:12px 13px;margin-bottom:16px;border:1px solid}
+.res-status b{color:var(--ink)}
+.res-status-empty{background:rgba(159,177,198,.08);border-color:var(--line);color:var(--ink2)}
+.res-status-early{background:rgba(74,168,216,.10);border-color:rgba(74,168,216,.35);color:var(--ink2)}
+.res-status-ok{background:rgba(74,222,128,.08);border-color:rgba(74,222,128,.30);color:var(--ink2)}
+.res-status-good{background:rgba(74,222,128,.12);border-color:rgba(74,222,128,.45);color:var(--ink2)}
+.res-section-h{font-size:13px;font-weight:700;margin:14px 0 8px;display:flex;align-items:center;gap:8px}
+.res-h-win{color:#4ade80}
+.res-h-watch{color:var(--ink2)}
+.res-count{font-size:11px;font-weight:700;color:var(--ink2);background:var(--panel2);
+  border:1px solid var(--line);border-radius:999px;padding:1px 9px;margin-left:auto}
+.res-section{display:flex;flex-direction:column;gap:7px}
+.res-model-group{margin-bottom:10px}
+.res-model-h{font-size:12.5px;font-weight:600;color:var(--ink2);margin:6px 0 5px}
+.res-row{background:var(--panel2);border:1px solid var(--line);border-radius:9px;
+  padding:9px 11px;display:flex;flex-direction:column;gap:3px}
+.res-row-dim{opacity:.78}
+.res-farm{font-size:13px;font-weight:600;color:var(--ink);display:flex;
+  justify-content:space-between;gap:8px;align-items:baseline}
+.res-region{font-size:10.5px;font-weight:500;color:var(--ink2);flex-shrink:0}
+.res-beat{font-size:12px;color:var(--ink2);display:flex;justify-content:space-between;gap:8px}
+.res-days{font-size:10.5px;color:var(--ink2);flex-shrink:0;white-space:nowrap}
+.res-empty{font-size:12.5px;color:var(--ink2);padding:10px 2px;line-height:1.5}
+.res-foot{margin-top:16px;padding-top:12px;border-top:1px solid var(--line);
+  font-size:11.5px;color:var(--ink2);line-height:1.5}
+.res-caveat{margin-top:8px;color:#fbbf24;font-size:11px;line-height:1.5}
+.res-skill{font-size:11px;color:var(--ink2);margin-top:4px;line-height:1.5}
+.res-vs{color:var(--ink2);opacity:.7}
+/* confident-winner cards — echo the main scorecard's model-card aesthetic */
+.res-model-h-sub{font-weight:600;color:var(--ink2);font-size:11.5px}
+.res-card{background:var(--panel2);border:1px solid var(--line);border-left:3px solid var(--line);
+  border-radius:10px;padding:11px 12px;margin-bottom:8px}
+.res-card-top{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.res-days-badge{font-size:10px;font-weight:700;color:var(--ink2);background:var(--panel);
+  border:1px solid var(--line);border-radius:999px;padding:1px 8px;flex-shrink:0;white-space:nowrap}
+.res-beat-amt{font-size:11.5px;color:var(--ink2);margin-top:3px;line-height:1.4}
+.res-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin-top:10px}
+@supports not (display:grid){ .res-stats{display:flex} .res-stats .res-stat{flex:1} }
+.res-stat{background:var(--panel);border:1px solid var(--line);border-radius:9px;
+  padding:8px 4px;text-align:center}
+.res-stat-good{border-color:rgba(74,222,128,.4)}
+.res-stat-l{font-size:9px;text-transform:uppercase;letter-spacing:.4px;color:var(--ink2);
+  line-height:1.2;min-height:22px;display:flex;align-items:center;justify-content:center}
+.res-stat-v{font-size:19px;font-weight:800;color:var(--ink);line-height:1.1;
+  font-variant-numeric:tabular-nums;margin-top:2px}
+.res-stat-good .res-stat-v{color:#7bd88f}
+.res-stat-u{font-size:10px;font-weight:600;color:var(--ink2)}
+.res-stat-vs{display:block;font-size:9.5px;color:var(--ink2);opacity:.75;margin-top:2px}
+.res-decide{margin-top:18px;padding:14px;background:var(--panel2);border:1px solid var(--line);border-radius:10px}
+.res-decide-h{font-size:13px;font-weight:700;color:var(--ink);margin-bottom:10px}
+.res-q{font-size:12.5px;color:var(--ink);margin-bottom:9px;line-height:1.45}
+.res-q b{color:var(--rain)}
+.res-q-sub{display:block;font-size:11px;color:var(--ink2);margin-top:2px;line-height:1.5}
+.res-decide-rule{margin-top:6px;padding-top:10px;border-top:1px solid var(--line);font-size:12px;color:var(--ink);line-height:1.55}
+.modal-actions .btn{flex:1;margin-top:0}
+.guide-body{margin-top:4px}
+.qr-wrap{text-align:center;margin:4px 0 18px}
+.qr{width:200px;height:200px;border-radius:12px;background:#fff;padding:10px;box-sizing:border-box}
+.qr-cap{font-size:12.5px;color:var(--ink2);margin-top:8px}
+.guide-sec{margin-bottom:14px}
+.guide-h{font-size:14.5px;font-weight:700;color:var(--ink);margin-bottom:3px}
+.guide-p{font-size:13.5px;color:var(--ink2);line-height:1.6}
+.guide-links{display:flex;flex-direction:column;gap:8px;margin:16px 0 12px}
+.guide-link{display:block;text-align:center;text-decoration:none;background:var(--panel2);
+  border:1px solid var(--line);color:var(--rain);border-radius:10px;padding:11px;
+  font-size:14px;font-weight:600}
+.guide-link:active{transform:scale(.99)}
+.guide-foot{font-size:11.5px;color:var(--ink2);line-height:1.6;text-align:left;
+  border-top:1px solid var(--line);padding-top:12px;margin-top:4px}
+
+/* table */
+.tbl-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch;margin:0 -4px}
+table{width:100%;border-collapse:collapse;font-size:13px;font-variant-numeric:tabular-nums}
+th,td{padding:7px 8px;text-align:right;white-space:nowrap;border-bottom:1px solid var(--line)}
+th:first-child,td:first-child{text-align:left;position:sticky;left:0;background:var(--panel)}
+thead th{color:var(--ink2);font-weight:600;font-size:11.5px;text-transform:uppercase;
+  letter-spacing:.3px;border-bottom:1px solid var(--line)}
+tbody tr:last-child td{border-bottom:none}
+td.bm{color:var(--bm)} td.ec{color:var(--ec)} td.act{color:var(--rain);font-weight:600}
+td.pending{color:var(--ink2);font-style:italic}
+.dot{display:inline-block;width:7px;height:7px;border-radius:50%;margin-left:4px}
+.dot.hit{background:var(--win)} .dot.miss{background:var(--bad)}
+tfoot td{font-weight:700;border-top:2px solid var(--line);border-bottom:none;padding-top:9px}
+tfoot td.label{color:var(--ink2);font-weight:600;text-transform:uppercase;font-size:11px}
+
+.banner{border-radius:10px;padding:10px 12px;font-size:13px;margin:10px 0;line-height:1.5}
+.banner.warn{background:rgba(227,179,65,.12);border:1px solid rgba(227,179,65,.4);color:#f0d488}
+.banner.info{background:rgba(74,168,216,.1);border:1px solid rgba(74,168,216,.35);color:#a9d6ee}
+.banner.bad{background:rgba(226,113,95,.12);border:1px solid rgba(226,113,95,.4);color:#f0a99b}
+.status{font-size:12px;color:var(--ink2);margin-top:8px;min-height:16px}
+.empty{text-align:center;color:var(--ink2);padding:26px 10px;font-size:14px}
+.empty .big{font-size:30px;margin-bottom:8px}
+.seg{display:flex;background:var(--panel2);border:1px solid var(--line);
+  border-radius:9px;padding:3px;gap:3px;margin-top:6px}
+.seg button{flex:1;border:none;background:transparent;color:var(--ink2);
+  padding:9px 7px;border-radius:7px;font-size:13px;font-weight:600;cursor:pointer;
+  font-family:inherit;transition:background .12s,color .12s;letter-spacing:.3px}
+.seg button:not(.on):hover{color:var(--ink);background:rgba(255,255,255,.04)}
+.seg button.on{background:var(--rain);color:#06121b;font-weight:800;
+  box-shadow:0 0 0 1px var(--rain), 0 2px 8px rgba(74,168,216,.35)}
+details{margin-top:10px}
+summary{cursor:pointer;font-size:13px;color:var(--ink2);padding:4px 0}
+.legend{display:flex;flex-direction:column;gap:8px;font-size:11.5px;color:var(--ink2);margin-top:10px}
+.legend-row{display:flex;gap:14px;flex-wrap:wrap}
+.legend span{display:inline-flex;align-items:center;gap:5px}
+.sw{width:10px;height:10px;border-radius:3px;display:inline-block}
+hr.sep{border:none;border-top:1px solid var(--line);margin:14px 0}
+footer{text-align:center;padding:18px 10px 8px;font-size:11px;color:var(--ink2)}
+@media(max-width:420px){
+  .mcol .mval{font-size:22px}
+  body{font-size:15px}
+}
+</style>
+</head>
+<body>
+<header>
+  <div class="logo">
+    <span class="drop">🌧️</span>
+    <span class="brand-text">
+      <span class="name" id="brandName">雨准 Lab</span>
+      <span class="sub" id="brandSub">forecast vs actual</span>
+    </span>
+  </div>
+  <div class="spacer"></div>
+  <button class="ghost-icon" id="btnFetchAll" title="Fetch all orchards (drive mode)">🚗</button>
+  <button class="ghost-icon" id="btnResults" title="Results: where a model beats IFS">🏆</button>
+  <button class="ghost-icon" id="btnHelp" title="Guide">ⓘ</button>
+  <button class="add-btn" id="btnOpenAdd" title="Add a location">＋</button>
+  <button class="lang ghost-lang" id="langBtn">中</button>
+</header>
+
+<div class="wrap">
+
+  <div id="toast" class="toast"></div>
+
+  <!-- LOCATIONS -->
+  <div class="card">
+    <h2 id="t_locations">Locations</h2>
+    <input type="text" id="locFilter" class="loc-filter" placeholder="" autocomplete="off" style="display:none">
+    <div class="loc-list" id="locList"></div>
+
+    <!-- add/edit form: hidden by default, opened from the header + button -->
+    <div id="formPanel" class="form-panel" style="display:none">
+      <div class="form-head">
+        <span id="formTitle">Add a location</span>
+        <button class="icon-btn" id="btnCloseForm" type="button" aria-label="Close">✕</button>
+      </div>
+      <div id="editingTag" class="banner info" style="display:none"></div>
+      <label class="fld" id="t_locname" for="inName">Name</label>
+      <input id="inName" placeholder="My Orchard">
+      <div class="row">
+        <div>
+          <label class="fld" id="t_lat" for="inLat">Latitude</label>
+          <input id="inLat" inputmode="decimal" placeholder="3.62">
+        </div>
+        <div>
+          <label class="fld" id="t_lon" for="inLon">Longitude</label>
+          <input id="inLon" inputmode="decimal" placeholder="102.07">
+        </div>
+      </div>
+      <button class="btn btn-ghost" id="btnGps" type="button">📍 <span id="t_gps">Use my GPS</span></button>
+      <button class="btn btn-primary" id="btnAdd" type="button">Save location</button>
+      <button class="btn btn-ghost" id="btnCancelEdit" type="button" style="display:none"></button>
+    </div>
+
+    <!-- recycle bin -->
+    <div id="binMount"></div>
+  </div>
+
+  <!-- DATA STATUS -->
+  <div class="card" id="syncCard" style="display:none">
+    <h2 id="t_data">Data</h2>
+    <div class="seg" id="rangeSeg">
+      <button data-r="7">7d</button>
+      <button data-r="14">14d</button>
+      <button data-r="30" class="on">30d</button>
+    </div>
+    <button class="models-bar" id="btnModels" type="button">
+      <span class="models-bar-label" id="t_modelsLabel">Models</span>
+      <span class="models-bar-chips" id="modelsChips"></span>
+      <span class="models-bar-edit">✎</span>
+    </button>
+    <button class="btn btn-primary" id="btnSync" type="button">🔄 <span id="t_sync">Update records</span></button>
+    <button class="btn btn-ghost" id="btnExport" type="button" style="margin-top:8px">⬇ <span id="t_export">Export Excel (raw data)</span></button>
+    <div class="status" id="syncStatus"></div>
+    <div class="banner info" id="howNote" style="margin-top:12px"></div>
+  </div>
+
+  <!-- VERDICT -->
+  <div id="verdictMount"></div>
+
+  <!-- CHARTS -->
+  <div id="chartsMount"></div>
+
+  <!-- TABLE -->
+  <div id="tableMount"></div>
+</div>
+
+<script src="./xlsx.full.min.js"></script>
+<script>
+/* ============ RainScore — forecast-vs-actual rainfall scorecard ============
+   Conventions: single-file PWA, localStorage, Asia/Kuching, no fabricated data.
+   Forecast source: Previous Runs API (precipitation_previous_day1 = what was
+   forecast 24h before the day). Actual source: ERA5 archive precipitation_sum. */
+
+const TZ = "Asia/Kuching";
+const STORE_KEY = "rainscore_lab_v1";
+const CACHE_TAG = "rainscore-lab-20260627-36";
+const DRY_THRESHOLD = 1.0;   // mm — <1mm counts as a "dry day" (field-adjustable)
+const PREV_HOST = "https://previous-runs-api.open-meteo.com/v1/forecast";
+const ARCH_HOST = "https://archive-api.open-meteo.com/v1/archive";
+
+/* The full pool of models the user can choose from. Each entry: `key` (stored
+   data key, never reused), `api` (Open-Meteo model id), `cssVar` (display colour),
+   `short` (table abbreviation). To add a model to the pool, add a line here plus
+   its `models:{}` label in both languages. Only GLOBAL models that cover Malaysia
+   and carry reliable archived precipitation are included. */
+const MODEL_POOL = [
+  { key:"ifs",  api:"ecmwf_ifs",          cssVar:"--m1", short:"IFS"  },
+  { key:"icon", api:"icon_seamless",      cssVar:"--m2", short:"ICON" },
+  { key:"jma",  api:"jma_gsm",            cssVar:"--m3", short:"JMA"  },
+  { key:"cma",  api:"cma_grapes_global",  cssVar:"--m1", short:"CMA"  },
+  { key:"gem",  api:"gem_global",         cssVar:"--m2", short:"GEM"  },
+  { key:"gfs",  api:"gfs_seamless",       cssVar:"--m3", short:"GFS"  },
+];
+const DEFAULT_SELECTION = ["ifs","icon","jma","cma","gem","gfs"];  // research: all six active
+const MAX_ACTIVE = 6;   // research build: up to 6 models at once
+const MIN_ACTIVE = 1;   // need at least 1 to compare
+
+/* Six distinct colours assigned to active models by display position. */
+const SLOT_VARS = ["--m1","--m2","--m3","--m4","--m5","--m6"];
+
+function poolModel(key){ return MODEL_POOL.find(m=>m.key===key); }
+
+/* The active models for the current selection, in display order, each given a
+   distinct slot colour. This replaces the old fixed MODELS array — sync, scoring,
+   verdict and table all loop over MODELS(). */
+function MODELS(){
+  const sel = (state && state.selection && state.selection.length) ? state.selection : DEFAULT_SELECTION;
+  return sel.map((key,i)=>{
+    const m = poolModel(key);
+    return m ? { ...m, cssVar: SLOT_VARS[i] } : null;
+  }).filter(Boolean);
+}
+
+/* ---------- i18n (one-tap toggle, zh structural base) ---------- */
+const I18N = {
+  zh:{
+    brandName:"雨准 Lab", brandNameShort:"雨准 Lab", brandSub:"预报对比实际",
+    locations:"地点", addloc:"+ 新增地点", locname:"名称", lat:"纬度", lon:"经度", namePh:"我的果园",
+    gps:"使用我的 GPS", save:"保存地点", data:"数据", sync:"更新记录", exportCsv:"导出 Excel 原始数据", dataSheet:"每日数据",
+    foot:"预报：ECMWF IFS 9km · DWD ICON · JMA GSM · 实际：ERA5 再分析 · CC BY 4.0",
+    langBtn:"中",
+    emptyLoc:"点右上角 ＋ 新增第一个果园地点", emptyLocBig:"📍", filterPlaceholder:"搜索果园名…", noMatch:"没有符合的果园", ungrouped:"其他", updateRegion:"更新此区所有果园", regionDone:(n)=>`已更新 ${n} 个果园`, regionDonePartial:(ok,n)=>`已更新 ${ok}/${n} 个（部分失败，可重试）`, driveTitle:"开车模式：慢慢抓取全部果园", driveNone:"还没有果园可抓取", driveStart:(n)=>`开车模式：开始慢慢抓取 ${n} 个果园，可关屏但请别关 App`, driveDone:(n,sk)=>sk?`全部 ${n} 个已就绪（其中 ${sk} 个今天已抓取）`:`全部 ${n} 个果园已抓取完成 ✓`, driveDonePartial:(ok,n)=>`已抓取 ${ok}/${n} 个（部分失败，再按一次补抓）`, driveStopped:(d,n)=>`已停止（完成 ${d}/${n}，再按继续）`, resTitle:"哪个模式赢 IFS？", resIntro:"对比每个果园：有没有别的模式在「雨量」和「晴雨判断」上都赢过你目前广播用的 ECMWF IFS 9km。下面「可信」一栏要求样本够多（≥20 天）且赢得够明显，才会列入——可作为该地区换模式的参考。", resConfidentH:"可信：某模式稳定赢 IFS", resWatchH:"值得观察（样本或幅度还不够）", resBeatsAt:(n)=>`在 ${n} 个果园赢 IFS`, resBeatLine:(name,mae,hit)=>`${name}：雨量准 ${mae}mm，晴雨高 ${hit}%`, resNeedMore:"需更多天", resNoneConfident:"目前还没有任何模式稳定赢过 IFS——继续累积数据。", resNoneWatch:"暂无观察名单。", resIfsBest:"IFS 仍最佳", resThin:"样本太少", resNoData:"暂无数据", resCaveat:"⚠ 仅供参考。热带骤雨变化大，换模式前请用更长时间、并结合地面雨量筒验证。", resTitleBtn:"结果：哪个模式赢 IFS", resStatusEmpty:"<b>还没有可比对的数据。</b>先用 🚗 开车模式抓取各果园，或打开某个果园按「更新记录」。实际雨量（ERA5）约延迟 5 天，所以最近几天要过几天才有分数。", resStatusBuilding:(w,tot,mx,need)=>`<b>数据正在累积中，这很正常。</b>目前 ${tot} 个果园里有 ${w} 个开始有分数，最多的一个累积了 <b>${mx}/${need} 天</b>。<br>还没有任何结论——样本太少时排名会乱跳，<b>千万别凭几天数据就换模式</b>。<br>👉 每天用（或每天开车模式抓一次），约 <b>3–4 周</b>后果园陆续满 20 天，真正稳定赢 IFS 的模式就会出现在上面。`, resStatusIfsHolds:"<b>已有足够数据的果园里，目前 IFS 仍然最稳。</b>这本身就是有用的结论——代表你现在广播用的模式没问题。继续累积，若某地区有模式后来居上，会自动列到上面。", resStatusHasWinners:(n)=>`<b>已找到 ${n} 个果园有模式稳定赢过 IFS。</b>见下方「可信」名单。换模式前，仍建议再观察一段时间并结合地面雨量筒。`, resPOD:"接住雨", resFAR:"空报", resCSI:"综合", resDecideH:"该不该换模式？看三件事", resQ1:"它接得住该下的雨吗？", resQ1sub:"「接住雨」＝该下雨的日子里，它预报对了几成（越高越好）。漏掉大雨最伤果园。（POD 命中率）", resQ2:"它会不会常常空报？", resQ2sub:"「空报」＝它说会下、结果没下的比例（越低越好）。常空报会让你白忙。（FAR 误报率）", resQ3:"综合表现比 IFS 好吗？", resQ3sub:"「综合」＝把接住雨和空报合起来的总分（越高越好）。这一个数最能代表整体（CSI 综合指数）。", resDecideRule:"👉 只有当某模式「接住雨」更高、「空报」更低、「综合」也更高，而且累积了 20 天以上，才值得考虑在这个地区换用它。任何一项不如 IFS，就先别换。",
+    pickLoc:"选择上方地点查看记分", noData:"尚无记录，点「更新记录」",
+    how:"每次打开会记录各模型对「今天」的雨量预报，并用最近 7 天的存档自动补回遗漏的日子。实际雨量用 ERA5 再分析回填（约延迟 5 天）。",
+    mae:"平均误差", maeUnit:"毫米/天", hit:"晴雨命中", hitUnit:"准确率",
+    days:"天", winner:"最准", tie:"打平", baseline:"目前预报模式",
+    bestAmt:(w)=>`雨量上，<b class="${w.cls}">${w.name}</b> 这个月最接近实际。`,
+    bestHit:(w)=>`判断「有雨／无雨」上，<b class="${w.cls}">${w.name}</b> 命中最高。`,
+    tieAmt:"雨量上各模型非常接近，难分高下。",
+    tieHit:"晴雨判断上各模型非常接近，难分高下。",
+    coLeadAmt:(names)=>`雨量上，${names} 并列最准。`,
+    coLeadHit:(names)=>`晴雨判断上，${names} 并列最高。`,
+    listSep:"、",
+    betterThanBase:(w)=>`👉 此地点 <b class="${w.cls}">${w.name}</b> 比目前天气预报用的模式 ECMWF IFS 9km 更准 — 可考虑为此农户改用。`,
+    baseIsBest:"目前天气预报用的模式 ECMWF IFS 9km 在此地点已是最准 — 无需更换。",
+    dualnote:"两个分数回答不同问题：平均误差＝雨量信得过多少；晴雨命中＝它说「无雨」时信得过多少。",
+    colDate:"日期", colAct:"实际",
+    pending:"待回填", legendHit:"晴雨判对", legendMiss:"晴雨判错",
+    models:{ ifs:"IFS 9km", icon:"ICON", jma:"JMA", cma:"CMA", gem:"GEM", gfs:"GFS" },
+    syncing:"更新中…", synced:(n)=>`已更新 · ${n} 天有实际数据`,
+    syncErr:"更新失败，请检查网络", gpsErr:"无法取得定位", gpsOk:"已带入坐标",
+    needName:"请填写名称与坐标", confirmDel:"删除此地点及其记录？",
+    cache:`缓存 ${CACHE_TAG}`, del:"删除",
+    daysWithActual:(n)=>`${n} 天有实际雨量可比对`,
+    edit:"编辑", restore:"恢复", save:"保存地点", update:"更新地点",
+    cancel:"取消编辑", editing:(n)=>`正在编辑：${n}`,
+    addloc2:"+ 新增地点",
+    bin:(n)=>`回收站（${n}）`, purge:"永久清空回收站",
+    confirmPurge:"永久删除回收站内所有地点及其记录？此操作不可撤销。",
+    softDeleted:"已删除", undo:"撤销", restored:"已恢复 ✓", purged:"回收站已清空",
+    keptHist:"记录已保留，可随时恢复",
+    keptNear:(m)=>`位置微调 ${m} 米（同一网格）· 记录已保留`,
+    shareWA:"📤 分享到 WhatsApp", copied:"已复制到剪贴板 ✓", shareFail:"分享失败",
+    modelsLabel:"模式", pickTitle:"选择对比模式", pickHint:"选 1 到 6 个模式来对比（点选／取消，数字是显示顺序）。换模式后，新模式只会从最近 7 天开始有数据，往后逐日累积。",
+    pickAtLeast:(n)=>`至少选 ${n} 个模式`, pickReadyN:(n)=>`已选 ${n} 个 · 可以保存 ✓`,
+    confLow:"样本太少", confMid:"参考", confHigh:"可靠",
+    chartsTitle:"图表对比", chartMae:"平均误差排名（越短越准）",
+    chartScatter:"预报 vs 实际", chartScatterSub:"点越靠对角线越准；偏上＝报多了，偏下＝报少了",
+    chartTime:"每日误差", chartTimeSub:"零线以上＝偏多，以下＝偏少",
+    chartThin:"⚠ 天数还少，图表仅供参考，别太当真",
+    biasWet:"偏多", biasDry:"偏少", biasNone:"无偏差",
+    missRain:"漏雨", falseAlarm:"空报",
+    missRainFull:"模型说无雨，实际有雨（危险）", falseAlarmFull:"模型说有雨，实际无雨（虚惊）",
+    pickFull:(n)=>`最多选 ${n} 个 — 先取消一个`,
+    cancel:"取消", save:"保存",
+    previewTitle:"预览讯息", previewHint:"可在发送前修改或加上你的话：",
+    copyBtn:"复制", sendWA:"发送到 WhatsApp",
+    guideTitle:"使用指南", guideScan:"扫码打开 / 分享此 App",
+    guideAppLink:"打开 App 网址", guideRepo:"GitHub 源代码",
+    guideFoot:"数据来源：Open-Meteo（CC BY 4.0）· 预报模式：IFS 9km、ICON、JMA、CMA、GEM、GFS<br>实际雨量 ERA5 再分析",
+    guideSections:[
+      { h:"这个 App 做什么？", p:"你平时用的天气 App，背后其实是某一个「天气模式」在算。世界上有好几个国家各自做了自己的模式，对同一个地方、同一天的雨量，它们的预报可能差很多。这个 App 把多个模式对你果园的雨量预报，跟事后的实际雨量比一比，找出哪个模式在你这里最准。" },
+      { h:"什么是「天气模式」？", p:"就是一套超级电脑跑的天气计算程序。气象局把今天的大气状况（温度、湿度、风…）输入进去，电脑往后推算未来几天的天气。不同国家用不同的程序和超级电脑，所以结果不一样——就像不同厨师用同样的食材，做出来的味道不同。" },
+      { h:"六个模式是谁？", p:"每个都是某个国家气象局跑的全球预报模式，覆盖马来西亚、降水数据可靠：<br><br><b>IFS 9km</b>＝欧洲中期预报中心（ECMWF），分辨率约 9 公里，公认全球最准之一，也是你目前广播在用的。<br><b>ICON</b>＝德国气象局（DWD），约 11 公里，欧洲主力模式。<br><b>JMA</b>＝日本气象厅，对热带亚洲经验深、表现稳。<br><b>CMA</b>＝中国气象局，地理上最邻近、覆盖好。<br><b>GEM</b>＝加拿大环境部，全球模式，作为对照。<br><b>GFS</b>＝美国 NOAA，存档历史最长、最稳定。<br><br>选 1 到 6 个一起比。AI 模式（GraphCast、AIFS）不在内——它们的降水数据在 Open-Meteo 上不可用。" },
+      { h:"两个主要分数", p:"「平均误差」＝预报的雨量数字差多少毫米（越小越准）。「晴雨命中」＝判断「那天有没有下雨」对的比率（越高越准）。一个看雨量多少，一个看到底下不下——两者不一样，有的模式雨量准但晴雨判断差，反之亦然。" },
+      { h:"排名 #1 #2 …", p:"每张卡片上，两个分数旁各有一个名次（#1 最好）。绿色 #1 表示该项最准。若几个模式同分，会并列同名次。这样一眼就看出谁强在雨量、谁强在晴雨判断。" },
+      { h:"「偏多 / 偏少」", p:"在平均误差下面。「偏多」＝这个模式倾向报得比实际多雨；「偏少」＝倾向报得比实际少。对榴莲很重要：报少雨（偏少）会让你措手不及，报多雨（偏多）顶多是虚惊一场。" },
+      { h:"「漏雨 / 空报」", p:"在晴雨命中下面。「漏雨」＝模式说没雨、结果下了（危险，会被淋到）。「空报」＝模式说有雨、结果没下（虚惊）。同样命中率，漏雨少的模式更可靠、更安全。" },
+      { h:"「样本太少 / 参考 / 可靠」", p:"顶部的小标签。实际雨量（ERA5）约延迟 5 天，所以刚开始能比对的天数很少，排名会跳动、不可靠。少于 8 天＝样本太少；8–19 天＝参考；20 天以上＝可靠。等到「可靠」再下结论。" },
+      { h:"怎么用", p:"果园已经<b>预先载入</b>（见下），<b>直接选一个来看就行</b>——不必自己添加。想加自己的果园也可以：点右上角 ＋（输入坐标或用 GPS）。点「模式」选要比的模式（1–6 个）。每天打开会自动记录当天预报，并用最近 7 天存档补回遗漏的日子。记录一天天累积，约一个月后最完整。想一次抓很多果园，用下面的「三种更新方式」。" },
+      { h:"果园已预先载入", p:"App 已为你预载约 110 个果园地点（WeatherNext 大家庭的所有果园），<b>无需自己逐个添加</b>。地点按地区分组，点地区标题展开或收起。果园多时上方会出现搜索框，可按名字快速查找。你选中的果园所在地区，标题上会直接显示该果园名字，方便辨认。" },
+      { h:"三种更新方式", p:"<b>① 单个果园：</b>选中某果园后，点「更新记录」只刷新这一个（强制重新抓取当天数据）。<br><b>② 整个地区：</b>展开地区后，点标题右边的 <b>↻</b> 按钮，会依次更新该地区<b>所有</b>果园，按钮上显示进度（如 3/15）。<br><b>③ 全部果园（🚗 开车模式）：</b>点顶部 <b>🚗</b>，App 会慢慢地一个一个抓取全部 114 个果园，按钮上显示进度（如 47/114）。特意放慢速度以免触发限流；出门前按一下，开车到果园时差不多就抓完了。中途来电可再按一下暂停，回头再按继续（会接着抓、不重复）。已抓过的当天会自动跳过。<br><br>②③ 都会沿用当天缓存、对服务器友好；① 是强制刷新单个果园。" },
+      { h:"🏆 结果卡：哪个模式赢 IFS", p:"点顶部 <b>🏆</b> 打开跨果园总结。它扫描全部果园，找出<b>哪些果园有别的模式稳定赢过 IFS 9km</b>（你目前广播用的）。<br><b>「可信」</b>一栏：只列出累积 ≥20 天、且在「雨量」和「晴雨判断」上都明显赢 IFS 的果园——可作为该地区换模式的依据。<br><b>「值得观察」</b>一栏：已领先但样本或幅度还不够，先看着。<br>每张卡片会用三个白话分数跟 IFS 对比：<b>接住雨（POD）</b>、<b>空报（FAR）</b>、<b>综合（CSI）</b>，并在底部教你「该不该换模式，看三件事」。<br><b>重要：</b>刚开始几乎全部果园都在「暂无数据 / 样本太少」，这是正常的——实际雨量 ERA5 延迟约 5 天，要每天用（或每天开车模式抓一次），约 3–4 周后才会陆续满 20 天、出现真正的结论。<b>千万别凭几天数据就换模式。</b>" },
+      { h:"方法说明（技术）", p:"预报：Open-Meteo「Previous Runs」API 的 precipitation_previous_day1，即各模式在前一天对该日的 24 小时预报（前置时间固定为 24h）。逐时降水按 Asia/Kuching 本地日累加为日总量。实际：ERA5 再分析（archive-api），约延迟 5 天。注意 ERA5 本身是同化模式的网格估计，非实地雨量计，对热带对流性降雨有已知局限。「有雨」阈值＝1.0 mm/日。平均误差＝MAE；偏向＝平均带符号误差；漏雨／空报＝2×2 列联表的漏报与误报。样本少时差异未必有统计显著性——本 App 只给启发式可靠度标签，不做显著性检验。要自己分析可用「导出 Excel」。" },
+    ],
+  },
+  en:{
+    brandName:"RainScore Lab", brandNameShort:"RS Lab", brandSub:"forecast vs actual",
+    locations:"Locations", addloc:"+ Add a location", locname:"Name", lat:"Latitude", lon:"Longitude", namePh:"My Orchard",
+    gps:"Use my GPS", save:"Save location", data:"Data", sync:"Update records", exportCsv:"Export Excel (raw data)", dataSheet:"Daily data",
+    foot:"Forecasts: ECMWF IFS 9km · DWD ICON · JMA GSM · Actual: ERA5 reanalysis · CC BY 4.0",
+    langBtn:"EN",
+    emptyLoc:"Tap ＋ (top right) to add your first orchard", emptyLocBig:"📍", filterPlaceholder:"Search orchards…", noMatch:"No matching orchards", ungrouped:"Other", updateRegion:"Update all orchards in this region", regionDone:(n)=>`Updated ${n} orchards`, regionDonePartial:(ok,n)=>`Updated ${ok}/${n} (some failed, try again)`, driveTitle:"Drive mode: fetch all orchards slowly", driveNone:"No orchards to fetch yet", driveStart:(n)=>`Drive mode: gathering ${n} orchards slowly. Screen can sleep, but keep the app open.`, driveDone:(n,sk)=>sk?`All ${n} ready (${sk} were already done today)`:`All ${n} orchards fetched ✓`, driveDonePartial:(ok,n)=>`Fetched ${ok}/${n} (some failed — tap again to finish)`, driveStopped:(d,n)=>`Stopped (${d}/${n} done — tap to resume)`, resTitle:"Which model beats IFS?", resIntro:"For each orchard: does another model beat your broadcast baseline ECMWF IFS 9km on BOTH rainfall amount and dry/wet calls? The \"Confident\" list below only includes farms with enough days (≥20) and a clear margin — a fair basis for considering a model switch in that region.", resConfidentH:"Confident: a model reliably beats IFS", resWatchH:"Worth watching (sample or margin still thin)", resBeatsAt:(n)=>`beats IFS at ${n} ${n===1?"orchard":"orchards"}`, resBeatLine:(name,mae,hit)=>`${name}: ${mae}mm better amount, +${hit}% dry/wet`, resNeedMore:"need more days", resNoneConfident:"No model reliably beats IFS yet — keep gathering data.", resNoneWatch:"Nothing on the watch list yet.", resIfsBest:"IFS still best", resThin:"Too few days", resNoData:"No data yet", resCaveat:"⚠ Indicative only. Tropical downpours are erratic — confirm over a longer period and against your ground rain gauge before switching models.", resTitleBtn:"Results: where a model beats IFS", resStatusEmpty:"<b>No comparison data yet.</b> Use 🚗 drive mode to gather orchards, or open an orchard and tap \"Update records\". Actual rain (ERA5) lags ~5 days, so the most recent days only get scored a few days later.", resStatusBuilding:(w,tot,mx,need)=>`<b>Data is still building — this is normal.</b> ${w} of ${tot} orchards have started scoring, and the furthest along has <b>${mx}/${need} days</b>.<br>No conclusions yet — rankings swing wildly with few days, so <b>never switch models on a handful of days</b>.<br>👉 Use it daily (or run drive-mode once a day) and in about <b>3–4 weeks</b> orchards cross 20 days, at which point any model that genuinely beats IFS appears above.`, resStatusIfsHolds:"<b>Among orchards with enough data, IFS is still the steadiest so far.</b> That's a useful finding in itself — it means your current broadcast model is holding up. Keep gathering; if a model overtakes it in some region, it'll appear above automatically.", resStatusHasWinners:(n)=>`<b>Found ${n} orchard(s) where a model reliably beats IFS.</b> See the \"Confident\" list below. Even so, watch a while longer and check against your ground rain gauge before switching.`, resPOD:"Catches rain", resFAR:"False alarms", resCSI:"Overall", resDecideH:"Should you switch? Look at three things", resQ1:"Does it catch the rain that matters?", resQ1sub:"\"Catches rain\" = of the days it actually rained, how many it predicted (higher is better). Missing a big downpour hurts most. (POD)", resQ2:"Does it cry wolf too often?", resQ2sub:"\"False alarms\" = of the days it predicted rain, how many stayed dry (lower is better). Frequent false alarms waste your planning. (FAR)", resQ3:"Is it better overall than IFS?", resQ3sub:"\"Overall\" = catches-rain and false-alarms combined into one score (higher is better). This single number best sums it up. (CSI)", resDecideRule:"👉 Only worth switching a region to a model when it catches more rain, has fewer false alarms, AND scores higher overall than IFS — over 20+ days. If it loses on any one of these, keep IFS for now.",
+    pickLoc:"Pick a location above to see its scorecard", noData:"No records yet — tap Update records",
+    how:"Each time you open the app it logs what every model forecast for today, and back-fills any missed days from the last 7 days of archive. Actual rain is filled from ERA5 reanalysis (about 5 days behind).",
+    mae:"Avg miss", maeUnit:"mm/day", hit:"Dry/wet calls", hitUnit:"correct",
+    days:"days", winner:"best", tie:"tie", baseline:"broadcast now",
+    bestAmt:(w)=>`On rain amount, <b class="${w.cls}">${w.name}</b> was closest this month.`,
+    bestHit:(w)=>`On calling rain vs dry, <b class="${w.cls}">${w.name}</b> got the most right.`,
+    tieAmt:"On rain amount, the models were very close this month.",
+    tieHit:"On dry/wet calls, the models were very close.",
+    coLeadAmt:(names)=>`On rain amount, ${names} tied as closest.`,
+    coLeadHit:(names)=>`On dry/wet calls, ${names} tied for the most right.`,
+    listSep:", ",
+    betterThanBase:(w)=>`👉 At this spot <b class="${w.cls}">${w.name}</b> beats the IFS 9km you broadcast now — worth switching this farmer.`,
+    baseIsBest:"The IFS 9km you broadcast now is already best here — no change needed.",
+    dualnote:"The two scores answer different questions: Avg miss = how much to trust the amount; Dry/wet calls = how much to trust it when it says “dry”.",
+    colDate:"Date", colAct:"Actual",
+    pending:"pending", legendHit:"dry/wet right", legendMiss:"dry/wet wrong",
+    models:{ ifs:"IFS 9km", icon:"ICON", jma:"JMA", cma:"CMA", gem:"GEM", gfs:"GFS" },
+    syncing:"Updating…", synced:(n)=>`Updated · ${n} days with actuals`,
+    syncErr:"Update failed — check connection", gpsErr:"Couldn't get location", gpsOk:"Coordinates filled",
+    needName:"Enter a name and coordinates", confirmDel:"Delete this location and its records?",
+    cache:`Cache ${CACHE_TAG}`, del:"Delete",
+    daysWithActual:(n)=>`${n} days have actual rain to compare`,
+    edit:"Edit", restore:"Restore", save:"Save location", update:"Update location",
+    cancel:"Cancel edit", editing:(n)=>`Editing: ${n}`,
+    addloc2:"+ Add a location",
+    bin:(n)=>`Recycle bin (${n})`, purge:"Empty recycle bin permanently",
+    confirmPurge:"Permanently delete all locations in the bin and their records? This cannot be undone.",
+    softDeleted:"Deleted", undo:"Undo", restored:"Restored ✓", purged:"Recycle bin emptied",
+    keptHist:"Records kept — restore anytime",
+    keptNear:(m)=>`Moved ${m} m (same grid cell) · records kept`,
+    shareWA:"📤 Share to WhatsApp", copied:"Copied to clipboard ✓", shareFail:"Share failed",
+    modelsLabel:"Models", pickTitle:"Choose models to compare", pickHint:"Pick 1 to 6 models to compare (tap to select/deselect; the number is display order). After switching, a new model only has data from the last 7 days and builds up daily from there.",
+    pickAtLeast:(n)=>`Pick at least ${n} model`, pickReadyN:(n)=>`${n} selected · ready to save ✓`,
+    confLow:"too few days", confMid:"indicative", confHigh:"reliable",
+    chartsTitle:"Visual comparison", chartMae:"Avg miss ranking (shorter = better)",
+    chartScatter:"Forecast vs actual", chartScatterSub:"Closer to the diagonal = better; above = over-forecast, below = under-forecast",
+    chartTime:"Daily error", chartTimeSub:"Above the zero line = too wet, below = too dry",
+    chartThin:"⚠ Few days yet — read these charts as provisional",
+    biasWet:"too wet", biasDry:"too dry", biasNone:"no bias",
+    missRain:"missed", falseAlarm:"false",
+    missRainFull:"Model said dry, it rained (dangerous)", falseAlarmFull:"Model said rain, stayed dry (false alarm)",
+    pickFull:(n)=>`Up to ${n} — deselect one first`,
+    cancel:"Cancel", save:"Save",
+    previewTitle:"Preview message", previewHint:"Edit or add your own note before sending:",
+    copyBtn:"Copy", sendWA:"Send to WhatsApp",
+    guideTitle:"Guide", guideScan:"Scan to open / share this app",
+    guideAppLink:"Open app URL", guideRepo:"GitHub source code",
+    guideFoot:"Data: Open-Meteo (CC BY 4.0) · Models: IFS 9km, ICON, JMA, CMA, GEM, GFS<br>Actual rain ERA5 reanalysis",
+    guideSections:[
+      { h:"What this app does", p:"The weather app on your phone is really just one \"weather model\" doing the maths behind the scenes. Several countries each built their own model, and for the same place on the same day they can predict quite different rainfall. This app compares several models' rain forecasts for your orchard against what actually fell, to find which one is most accurate where you are." },
+      { h:"What is a \"weather model\"?", p:"It's a giant computer program run on a supercomputer. A weather agency feeds in today's conditions (temperature, humidity, wind…) and the computer calculates the next few days. Different countries use different programs and supercomputers, so they get different answers — like different cooks making different dishes from the same ingredients." },
+      { h:"Who are the six models?", p:"Each is a global forecast model run by a national weather service, all covering Malaysia with reliable rainfall data:<br><br><b>IFS 9km</b> = ECMWF (Europe), about 9 km resolution, widely rated among the most accurate in the world — and the one your broadcast uses now.<br><b>ICON</b> = Germany's service (DWD), about 11 km, Europe's main model.<br><b>JMA</b> = Japan's weather agency, with deep experience and steady performance in tropical Asia.<br><b>CMA</b> = China's weather service, the closest neighbour geographically, with good coverage.<br><b>GEM</b> = Environment Canada's global model, useful as a cross-check.<br><b>GFS</b> = USA's NOAA, the longest and most stable archive.<br><br>Pick any 1 to 6 to compare. The AI models (GraphCast, AIFS) aren't included — their rainfall data isn't usable on Open-Meteo." },
+      { h:"The two main scores", p:"\"Avg miss\" = how many mm the forecast was off by (lower is better). \"Dry/wet calls\" = how often it got \"did it rain that day or not\" right (higher is better). One is about how much rain, the other about whether it rains at all — a model can be good at one and poor at the other." },
+      { h:"The ranks #1 #2 …", p:"On each card, both scores carry a rank (#1 is best). A green #1 means best on that score. If models tie, they share a rank. This shows at a glance which model is strong on amount versus which is strong on dry/wet calls." },
+      { h:"\"Too wet / too dry\"", p:"Shown under Avg miss. \"Too wet\" = the model tends to predict more rain than falls; \"too dry\" = it predicts less. This matters for durian: a model that runs too dry can leave you caught out in real rain, while one that runs too wet is just a false alarm." },
+      { h:"\"Missed / false\"", p:"Shown under Dry/wet calls. \"Missed\" = model said dry but it rained (dangerous — you get caught out). \"False\" = model said rain but it stayed dry (just annoying). At the same accuracy, a model with fewer \"missed\" is safer." },
+      { h:"\"Too few days / indicative / reliable\"", p:"The little tag at the top. Actual rain (ERA5) lags ~5 days, so early on there are very few scored days and the ranking jumps around. Under 8 days = too few; 8–19 = indicative; 20+ = reliable. Wait for \"reliable\" before drawing conclusions." },
+      { h:"How to use it", p:"Orchards are already <b>pre-loaded</b> (see below), so <b>just pick one to view</b> — you don't have to add anything. You can still add your own: tap ＋ (top right) and enter coordinates or use GPS. Tap \"Models\" to choose which to compare (1–6). Each time you open the app it logs that day's forecast and back-fills the last 7 days. Records build up daily and are fullest after about a month. To fetch many orchards at once, use the \"Three ways to update\" below." },
+      { h:"Your orchards are pre-loaded", p:"The app comes with ~110 orchards already loaded (every farm in the WeatherNext family), so <b>you don't have to add them yourself</b>. They're grouped by region — tap a region heading to expand or collapse it. When the list is long a search box appears on top to jump to a farm by name. The region holding your selected farm shows that farm's name right in its heading, so you can always see which one is active." },
+      { h:"Three ways to update", p:"<b>① One orchard:</b> with a farm selected, tap \"Update records\" to refresh just that one (a forced re-fetch of today's data).<br><b>② A whole region:</b> expand a region and tap the <b>↻</b> button on its heading to update <b>every</b> orchard in it, with progress shown on the button (e.g. 3/15).<br><b>③ All orchards (🚗 drive mode):</b> tap <b>🚗</b> at the top and the app slowly gathers all 114 orchards one by one, with progress on the button (e.g. 47/114). It's paced deliberately slowly to avoid rate limits — tap it before you leave and by the time you reach the orchard it's usually done. If a call interrupts, tap to pause and tap again to resume (it picks up where it left off, no double-fetching). Orchards already done today are skipped.<br><br>② and ③ reuse today's cache and are gentle on the server; ① is a forced refresh of a single orchard." },
+      { h:"🏆 Results card: which model beats IFS", p:"Tap <b>🏆</b> at the top to open the cross-orchard summary. It scans every orchard and finds <b>where another model reliably beats IFS 9km</b> (the one your broadcast uses).<br><b>\"Confident\"</b> lists only orchards with ≥20 days that beat IFS clearly on both rainfall amount and dry/wet calls — a fair basis for a regional model switch.<br><b>\"Worth watching\"</b> lists ones that lead but whose sample or margin is still thin.<br>Each card compares three plain-language scores against IFS: <b>Catches rain (POD)</b>, <b>False alarms (FAR)</b>, and <b>Overall (CSI)</b>, with a \"should you switch? look at three things\" helper at the bottom.<br><b>Important:</b> early on almost every orchard sits in \"no data / too few days\" — that's normal. Actual rain (ERA5) lags ~5 days, so you must use it daily (or run drive-mode once a day); after about 3–4 weeks orchards cross 20 days and real conclusions appear. <b>Never switch models on a handful of days.</b>" },
+      { h:"Methodology (technical)", p:"Forecasts: Open-Meteo \"Previous Runs\" API, variable precipitation_previous_day1 — each model's 24-hour-ahead forecast for that day (lead time held constant at 24h). Hourly precip is summed to local-day totals on Asia/Kuching. Actuals: ERA5 reanalysis (archive-api), ~5-day lag. Note ERA5 is itself a model-assimilated gridded estimate, not a physical rain gauge, with known limitations for convective tropical rainfall. Wet-day threshold = 1.0 mm/day. Avg miss = MAE; bias = mean signed error; missed/false = the miss and false-alarm cells of the 2×2 contingency table. With small samples, differences may not be statistically significant — this app gives only a heuristic reliability tag, not a significance test. Use \"Export Excel\" to run your own analysis." },
+    ],
+  }
+};
+let LANG = localStorage.getItem("rainscore_lang") || "zh";
+const T = ()=>I18N[LANG];
+
+/* ---------- state ---------- */
+let state = load();
+
+/* One-time seed: pre-load the verified WeatherNext farms so testers don't have to
+   type coordinates. Only fires if the location list is empty AND seeding hasn't run
+   before (so deleting all farms doesn't re-seed). These 19 are the farms whose exact
+   GPS we hold from the WeatherNext build records (Bera District, Miketam, Ren/Twin).
+   Edit or extend SEED_FARMS to add more once you have their coordinates. */
+const SEED_FARMS = [
+  ["Sg. Ruan - Fang Goo 双溪兰 - 晓方",3.77883,101.94133,"Raub 劳勿"],
+  ["Sg. Klau - Fang Goo 双溪吉流 - 晓方",3.71967,102.01033,"Raub 劳勿"],
+  ["Sg. Klau 1 - CT Tan 双溪吉流 1 - CT Tan",3.717,102.0055,"Raub 劳勿"],
+  ["Kg. Sg. Ruan - Neng 双溪兰 - 能",3.79361,101.93472,"Raub 劳勿"],
+  ["Kg. Sg. Ruan - Jerry Phoon 双溪兰新村 - Jerry",3.79194,101.94278,"Raub 劳勿"],
+  ["Sg. Klau - Kwong Seng 双溪吉流 - Kwong Seng",3.74833,101.95133,"Raub 劳勿"],
+  ["Sg. Klau 2 - CT Tan 双溪吉流 2 - CT Tan",3.74417,101.96917,"Raub 劳勿"],
+  ["Kg. Sg. Klau - Thompson 双溪吉流新村 - Thompso",3.7475,101.97694,"Raub 劳勿"],
+  ["Kg. Sg. Klau - Soon 双溪吉流新村 - 顺",3.78392,101.98063,"Raub 劳勿"],
+  ["Kampung Temau - Eric 甘榜德茂 - Eric",3.929,101.921,"Raub 劳勿"],
+  ["Ulu Gali 乌鲁加里",3.84478,101.95747,"Raub 劳勿"],
+  ["Kg. Gali 甘榜加里",3.83333,101.9,"Raub 劳勿"],
+  ["Jerkoh 日利谷",4.04861,101.92028,"Raub 劳勿"],
+  ["SJKC Cheroh 积罗国民型华文学校",3.90293,101.81499,"Raub 劳勿"],
+  ["Kampung Temau - MK 甘榜德茂 - MK",3.917778,101.919444,"Raub 劳勿"],
+  ["Dong - Hong 东区 - 鸿总",4.090556,101.966111,"Raub 劳勿"],
+  ["Ulu Gali - Jacky Kuan 乌鲁加里 - Jacky Kuan",3.834694,101.911833,"Raub 劳勿"],
+  ["Raub Batu Tiga - James Lye 劳勿三英里 - James",3.79275,101.903889,"Raub 劳勿"],
+  ["Ringlet 冷力",4.41453,101.38415,"Cameron 金马仑"],
+  ["Bertam Valley 伯坦谷",4.397,101.381,"Cameron 金马仑"],
+  ["Habu 哈布",4.44011,101.38921,"Cameron 金马仑"],
+  ["Tanah Rata 丹那拉打",4.47135,101.37565,"Cameron 金马仑"],
+  ["Brinchang 碧兰璋",4.49223,101.38732,"Cameron 金马仑"],
+  ["Kea Farm 吉亚农场",4.50436,101.40734,"Cameron 金马仑"],
+  ["Tringkap 丁甲",4.51494,101.42771,"Cameron 金马仑"],
+  ["Kampung Raja 甘榜拉惹",4.56709,101.40968,"Cameron 金马仑"],
+  ["Blue Valley 蓝谷",4.58322,101.41243,"Cameron 金马仑"],
+  ["Sungai Palas 双溪巴拉斯",4.5225,101.367,"Cameron 金马仑"],
+  ["Cameron Valley 金马伦谷",4.4305,101.401,"Cameron 金马仑"],
+  ["Boh Tea Plantation BOH 茶园",4.52,101.37,"Cameron 金马仑"],
+  ["Kuala Terla Tea Estate 吉拉烈茶园",4.548,101.42,"Cameron 金马仑"],
+  ["Kampung Taman Sedia 草莓农场",4.458,101.384,"Cameron 金马仑"],
+  ["MARDI Cameron Highlands MARDI 农业站",4.4619,101.3838,"Cameron 金马仑"],
+  ["Mantin Tmn Permai Jaya 文丁 中华华文小学",2.81778,101.8925,"NS9 森美兰"],
+  ["Mantin Andalas GIO GIO 文丁 湖滨花园",2.82639,101.88028,"NS9 森美兰"],
+  ["MANTIN DALAM 文丁达南",2.806111,101.8875,"NS9 森美兰"],
+  ["Spg. Durian (Kg. Mentaus) 1 新邦榴莲 Pitt-猫王",3.12,102.21972,"NS9 森美兰"],
+  ["Spg. Durian (Kg. Mentaus) 2 新邦榴莲 SAM",3.11778,102.21944,"NS9 森美兰"],
+  ["Titi 知知港",2.8167,102.0667,"NS9 森美兰"],
+  ["Labis - Austin 拉美士 - Austin",2.42806,103.03639,"Johor 柔佛"],
+  ["Segamat Buloh Kasap 昔加末 巫罗加什",2.527677,102.772178,"Johor 柔佛"],
+  ["Chaah Baru 三合港",2.148561,103.052319,"Johor 柔佛"],
+  ["Bekok 彼咯",2.305833,103.091389,"Johor 柔佛"],
+  ["Jementah 利民达",2.433331,102.683331,"Johor 柔佛"],
+  ["Tenang Hot Spring 丁能 热水池",2.481236,103.05805,"Johor 柔佛"],
+  ["Machap Baru 马接峇鲁",2.38,102.35056,"Melaka 马六甲"],
+  ["Durian Tunggal Dam 榴梿洞葛水坝",2.3537,102.3161,"Melaka 马六甲"],
+  ["Kg. Simpang Tebing Tinggi 德宾丁宜新村",3.87467,102.34467,"Jerantut 而连突"],
+  ["Damak 达玛",3.949544,102.214385,"Jerantut 而连突"],
+  ["Bukit Seladang 友联港神山",3.91313,102.35476,"Jerantut 而连突"],
+  ["Bentong Kuala Repas 文冬兵营",3.55181,101.8852,"Bentong 文冬"],
+  ["Bentong Happy Farm 农家乐",3.53333,101.88444,"Bentong 文冬"],
+  ["Bentong Valley Agro Park 文冬山寨谷小舍",3.67438,101.8655,"Bentong 文冬"],
+  ["Bentong Utara 文冬市北",3.52816,101.915014,"Bentong 文冬"],
+  ["Bentong Bukit D.O 文冬老虎山",3.530986,101.910808,"Bentong 文冬"],
+  ["Bentong Selatan 文冬市南",3.516833,101.897667,"Bentong 文冬"],
+  ["Waterway Villa 水道别墅",3.44917,101.90056,"Bentong 文冬"],
+  ["Kg. Benus 甘榜本努斯",3.50783,101.92667,"Bentong 文冬"],
+  ["Tras 都赖",3.73622,101.80792,"Bentong 文冬"],
+  ["Kampung Hulu Lebu 乌鲁乐布新村",3.57278,101.92611,"Bentong 文冬"],
+  ["Kampung Lebu 甘榜乐布",3.616,101.933,"Bentong 文冬"],
+  ["Sungai Ruan 双溪兰",3.8542814,101.9430543,"Bentong Team 团队"],
+  ["Bentong Kuala Repas 文冬兵营",3.55181,101.8852,"Bentong Team 团队"],
+  ["Bentong Happy Farm 农家乐",3.53333,101.88444,"Bentong Team 团队"],
+  ["Bentong Valley Agro Park 文冬山寨谷小舍",3.67438,101.8655,"Bentong Team 团队"],
+  ["Bentong Utara 文冬市北",3.52816,101.915014,"Bentong Team 团队"],
+  ["Bentong Bukit D.O 文冬老虎山",3.530986,101.910808,"Bentong Team 团队"],
+  ["Bentong Selatan 文冬市南",3.516833,101.897667,"Bentong Team 团队"],
+  ["Borneo Spring 婆罗青泉",3.492,102.024,"Karak 加叻"],
+  ["Kg. Sungai Dua 甘榜双溪都亚",3.45972,102.0,"Karak 加叻"],
+  ["Kg. Cinta Manis 甘甜新村",3.453,102.031,"Karak 加叻"],
+  ["Kg. Troh 德乐新村",3.41194,102.07889,"Karak 加叻"],
+  ["The Valley 加叻幽谷",3.38389,102.02778,"Karak 加叻"],
+  ["100% ORGANIC DURI RIN 山本绫有机农场",3.45227,101.99607,"Karak 加叻"],
+  ["Manchis 文积",3.205,102.164,"Manchis 文积"],
+  ["Kg. Ponson - Gan Ming Keong 彭顺村 - 颜明强",3.229722,102.156111,"Manchis 文积"],
+  ["Batu 36 三十六碑",3.240556,102.141111,"Manchis 文积"],
+  ["Chenderiang 积莪营",4.256043,101.227729,"Perak 霹雳"],
+  ["Sungkai 宋溪",3.978889,101.360278,"Perak 霹雳"],
+  ["Diamond Creeks 钻石溪",3.7755,101.52567,"Perak 霹雳"],
+  ["Tanjung Malim 丹绒马林",3.71778,101.55278,"Perak 霹雳"],
+  ["Kampung Belengu 甘榜柏伦古",3.436161,102.294602,"Pahang Central 彭亨中部"],
+  ["Kampung Ketam 甘榜吉胆",3.54,102.36778,"Pahang Central 彭亨中部"],
+  ["Kampung Gantok 甘榜甘督",3.505847,102.360318,"Pahang Central 彭亨中部"],
+  ["Jambu Rias BIGWOOD 占布里亚斯 大木",3.467919,102.094837,"Pahang Central 彭亨中部"],
+  ["Lojing 罗京高原",4.7443608,101.6416756,"Kelantan 吉兰丹"],
+  ["Kuala Krai 瓜拉吉赖",5.456499,102.3308,"Kelantan 吉兰丹"],
+  ["Gua Musang 话望生",4.884279,101.968178,"Kelantan 吉兰丹"],
+  ["Lubok Palaei 鲁柏巴莱",2.430879,111.947151,"Sabah/Sarawak 东马"],
+  ["Sibintek 西宾德",2.33837,112.08403,"Sabah/Sarawak 东马"],
+  ["Keningau 根地咬",5.35528,116.14472,"Sabah/Sarawak 东马"],
+  ["Kionsom 建山",5.99417,116.18222,"Sabah/Sarawak 东马"],
+  ["Mengkarak 明加叻",3.32,102.43,"Bera 百乐县"],
+  ["Kemasul 金马苏",3.297,102.395,"Bera 百乐县"],
+  ["Triang 直凉",3.248,102.417,"Bera 百乐县"],
+  ["Palm Glove 直凉园 金河山庄",3.2305389,102.3951267,"Bera 百乐县"],
+  ["Paya Lang 巴也郎",3.18194,102.43667,"Bera 百乐县"],
+  ["Simpang Bukit Mendi 明光",3.165721,102.386012,"Bera 百乐县"],
+  ["Bukit Mendi 武吉文迪",3.17474,102.350563,"Bera 百乐县"],
+  ["Kemayan Taman Maju Jaya 金马扬 1",3.124265,102.363199,"Bera 百乐县"],
+  ["Kemayan Taman Ixnora Jaya 金马扬 2",3.141841,102.363953,"Bera 百乐县"],
+  ["Sungai Rui 双溪锐",3.09639,102.35861,"Bera 百乐县"],
+  ["Lanchang (Durian) 联增",3.42925,102.13928,"Miketam 苏晓薇"],
+  ["Draha (Durian) 德拉哈",3.40339,102.283,"Miketam 苏晓薇"],
+  ["Jambu Rias 占布里亚斯",3.39956,102.14848,"Miketam 苏晓薇"],
+  ["Empresa 皇后园",3.36379,102.2608,"Miketam 苏晓薇"],
+  ["Mentakab 文德甲",3.37169,102.31093,"Miketam 苏晓薇"],
+  ["Mengkarak 明加叻",3.32936,102.31455,"Miketam 苏晓薇"],
+  ["Kuala Lipis 瓜拉立卑",4.124748,102.088034,"Miketam 苏晓薇"],
+  ["Kampung Chapu 甘榜查布",5.1775,102.895,"Desmond 陈联铕"],
+  ["Kuala Berang 瓜拉伯浪",5.1725,102.53333,"Desmond 陈联铕"],
+  ["Sungkai 宋溪",3.978889,101.360278,"Desmond 陈联铕"],
+  ["Tanjung Malim 丹绒马林",3.71778,101.55278,"Uncle Soon 順豪"],
+  ["Sungai Lembing 林明",3.85,103.03333,"Uncle Soon 順豪"],
+];
+/* Seed version. Bump this whenever SEED_FARMS gains entries that existing installs
+   should receive. The migration below re-runs whenever the stored version is older,
+   adding only the genuinely new (name+region) pairings. */
+const SEED_VERSION = 5;  // v1: 106 · v2: dual-region · v3: Bentong Team · v4: Jerantut 中文 · v5: Miketam 中文
+
+/* Region label corrections for already-seeded installs: old string → new string.
+   Applied before the add-new step so renamed farms aren't re-added as duplicates. */
+const REGION_RENAMES = { "Jerantut": "Jerantut 而连突", "Miketam": "Miketam 苏晓薇" };
+
+if(!state.seeded && (!state.locations || state.locations.length===0)){
+  state.locations = SEED_FARMS.map(([name,lat,lon,region],i)=>({
+    id:"L"+Date.now().toString(36)+i.toString(36), name, lat, lon, region
+  }));
+  state.seeded = true;
+  state.seedVersion = SEED_VERSION;
+  save();
+}
+
+/* Migration for already-seeded installs: rename any outdated region labels, add any
+   SEED_FARMS entry whose exact name+region pairing isn't present yet, and back-fill
+   the region tag onto older seeds that predate region grouping. Idempotent — the
+   name+region existence check means re-running never duplicates; the version gate
+   means it only does work when the seed set has changed. Never removes or touches
+   user-added farms. */
+if(state.seeded && state.locations && (state.seedVersion||0) < SEED_VERSION){
+  // rename outdated region labels (e.g. Jerantut → Jerantut 而连突)
+  for(const loc of state.locations){
+    if(loc.region && REGION_RENAMES[loc.region]) loc.region = REGION_RENAMES[loc.region];
+  }
+  // back-fill region onto any seeded farm that lacks it (match by coordinate)
+  for(const loc of state.locations){
+    if(loc.region) continue;
+    const hit = SEED_FARMS.find(([n,la,lo])=>
+      Math.abs(la-(+loc.lat))<1e-4 && Math.abs(lo-(+loc.lon))<1e-4);
+    if(hit) loc.region = hit[3];
+  }
+  // add any (name+region) seed entry not already present
+  const have = new Set(state.locations.map(l=>`${l.name}@@${l.region||""}`));
+  SEED_FARMS.forEach(([name,lat,lon,region],i)=>{
+    if(!have.has(`${name}@@${region}`)){
+      state.locations.push({ id:"Lm"+Date.now().toString(36)+i.toString(36), name, lat, lon, region });
+      have.add(`${name}@@${region}`);
+    }
+  });
+  state.seedVersion = SEED_VERSION;
+  save();
+}
+let activeLoc = (state.locations.find(l=>!l.deleted)||{}).id || null;
+let range = 30;
+
+function load(){
+  try{ const s = JSON.parse(localStorage.getItem(STORE_KEY)); if(s&&s.locations){
+    if(!Array.isArray(s.selection) || s.selection.length===0) s.selection = DEFAULT_SELECTION.slice();
+    return s;
+  } }catch(e){}
+  return { locations:[], records:{}, selection:DEFAULT_SELECTION.slice() };
+}
+function save(){ localStorage.setItem(STORE_KEY, JSON.stringify(state)); }
+
+/* ---------- date helpers (local Asia/Kuching calendar days) ---------- */
+function ymd(d){ // format a Date as YYYY-MM-DD in TZ
+  return new Intl.DateTimeFormat("en-CA",{timeZone:TZ,year:"numeric",month:"2-digit",day:"2-digit"}).format(d);
+}
+function todayYMD(){ return ymd(new Date()); }
+function daysAgoYMD(n){ const d=new Date(); d.setDate(d.getDate()-n); return ymd(d); }
+function dateRange(n){ const out=[]; for(let i=n-1;i>=0;i--) out.push(daysAgoYMD(i)); return out; }
+function shortDate(s){ const [y,m,d]=s.split("-"); return `${+m}/${+d}`; }
+
+/* Distance between two GPS points in metres (haversine).
+   Used to decide whether a coordinate edit keeps the comparison history:
+   within MOVE_KEEP_M the points share the same weather grid cell, so the
+   forecast/actual records remain valid. */
+const MOVE_KEEP_M = 1000; // 1 km
+function distM(lat1, lon1, lat2, lon2){
+  const R = 6371000, rad = Math.PI/180;
+  const dLat=(lat2-lat1)*rad, dLon=(lon2-lon1)*rad;
+  const a = Math.sin(dLat/2)**2 +
+            Math.cos(lat1*rad)*Math.cos(lat2*rad)*Math.sin(dLon/2)**2;
+  return 2*R*Math.asin(Math.min(1,Math.sqrt(a)));
+}
+
+/* ---------- API: fetch with gentle retry (Open-Meteo 429/503 throttle aware) ---------- */
+async function fetchJSON(url, tries=4){
+  let lastErr;
+  for(let i=0;i<tries;i++){
+    try{
+      const r = await fetch(url);
+      if(r.status===429 || r.status===503){
+        // honour Retry-After if the server sends it, else exponential-ish backoff with jitter
+        const ra = parseInt(r.headers.get("retry-after")||"",10);
+        const wait = (!isNaN(ra) ? ra*1000 : (1500 * Math.pow(1.8, i))) + Math.random()*1200;
+        await sleep(Math.min(wait, 12000));
+        continue;
+      }
+      if(!r.ok) throw new Error("HTTP "+r.status);
+      return await r.json();
+    }catch(e){ lastErr=e; await sleep(900+Math.random()*900); }
+  }
+  throw lastErr || new Error("fetch failed");
+}
+const sleep = ms => new Promise(r=>setTimeout(r,ms));
+
+/* Run async tasks with limited concurrency (pool), so we never fire all model
+   requests at once — that is what trips Open-Meteo's 429 rate limit. */
+async function runPooled(items, worker, concurrency=2){
+  const results = new Array(items.length);
+  let idx = 0;
+  async function next(){
+    const i = idx++;
+    if(i>=items.length) return;
+    try{ results[i] = await worker(items[i], i); }
+    catch(e){ results[i] = undefined; }
+    return next();
+  }
+  const runners = [];
+  for(let c=0;c<Math.min(concurrency, items.length);c++) runners.push(next());
+  await Promise.all(runners);
+  return results;
+}
+
+/* Sum hourly precipitation into per-local-day totals.
+   The Previous Runs API returns hourly arrays; we bucket by local date. */
+function bucketHourly(times, values){
+  const out = {};
+  if(!times||!values) return out;
+  for(let i=0;i<times.length;i++){
+    const day = times[i].slice(0,10); // API already returns local time when timezone set
+    const v = values[i];
+    if(v==null) continue;
+    out[day] = (out[day]||0) + v;
+  }
+  // round to 1 dp
+  for(const k in out) out[k] = Math.round(out[k]*10)/10;
+  return out;
+}
+
+/* Pull the "as-forecast 1 day ahead" daily totals for one model.
+   day1 offset = what was predicted 24h before that day — the honest forecast. */
+async function fetchForecastDaily(lat, lon, model, pastDays){
+  const params = new URLSearchParams({
+    latitude:lat, longitude:lon, timezone:TZ,
+    past_days:String(Math.min(pastDays,7)), forecast_days:"1",
+    hourly:"precipitation_previous_day1"
+  });
+  if(model) params.set("models", model);
+  const j = await fetchJSON(`${PREV_HOST}?${params}`);
+  return bucketHourly(j.hourly?.time, j.hourly?.precipitation_previous_day1);
+}
+
+/* Actual daily rain from ERA5 archive (precipitation_sum already daily). */
+async function fetchActualDaily(lat, lon, startYMD, endYMD){
+  const params = new URLSearchParams({
+    latitude:lat, longitude:lon, timezone:TZ,
+    start_date:startYMD, end_date:endYMD,
+    daily:"precipitation_sum"
+  });
+  const j = await fetchJSON(`${ARCH_HOST}?${params}`);
+  const out={}; const t=(j&&j.daily?.time)||[], p=(j&&j.daily?.precipitation_sum)||[];
+  for(let i=0;i<t.length;i++) if(p[i]!=null) out[t[i]] = Math.round(p[i]*10)/10;
+  return out;
+}
+
+/* ---------- the sync routine: log-on-open + 7-day gap-fill + ERA5 actuals ---------- */
+async function syncLocation(loc, pastDays, onStep, force){
+  const recs = state.records[loc.id] || (state.records[loc.id]={});
+  // Per-day fetch cache: once a model is logged today, today's open already has
+  // its data — past-day forecasts don't change, so skip refetching to spare the API.
+  const today = todayYMD();
+  const fc = (state.fetchedOn = state.fetchedOn || {});
+  const locFc = (fc[loc.id] = fc[loc.id] || {});
+
+  // 1) Forecasts: recover last min(pastDays,7) days from Previous Runs for every model.
+  onStep && onStep("forecast");
+  const models = MODELS();
+  // only fetch models not already fetched today for this location
+  const toFetch = force ? models : models.filter(m => locFc[m.key] !== today);
+  if(toFetch.length){
+    const results = await runPooled(
+      toFetch,
+      m => fetchForecastDaily(loc.lat, loc.lon, m.api, pastDays).catch(()=>({})),
+      2   // at most 2 model requests in flight — keeps us under Open-Meteo's rate limit
+    );
+    results.forEach((daily, i) => {
+      const key = toFetch[i].key;
+      let gotAny = false;
+      for(const day in (daily||{})){
+        recs[day] = recs[day] || {};
+        if(recs[day][key]==null) recs[day][key] = daily[day];  // first capture wins (honest record)
+        gotAny = true;
+      }
+      if(gotAny) locFc[key] = today;   // mark fetched today only if data actually came back
+    });
+  }
+
+  // 2) Actuals: ERA5 over the requested window. ERA5 lags ~5 days, so requesting up
+  //    to today returns nothing (or errors) for the whole window — we must cap the end
+  //    date at the latest day ERA5 actually has, else we store zero actuals and every
+  //    scorecard shows "0 days with actuals" despite forecasts being present.
+  onStep && onStep("actual");
+  const ERA5_LAG_DAYS = 5;
+  const start = daysAgoYMD(pastDays-1), end = daysAgoYMD(ERA5_LAG_DAYS);
+  // actuals also cached per day — only refetch once per calendar day
+  if(force || locFc.__actual !== today){
+    try{
+      const act = await fetchActualDaily(loc.lat, loc.lon, start, end);
+      for(const day in act){ recs[day]=recs[day]||{}; recs[day].actual=act[day]; }
+      // only mark done if we actually got something back; else retry next open
+      if(Object.keys(act).length) locFc.__actual = today;
+    }catch(e){ /* ERA5 lag / transient: recent days simply stay pending */ }
+  }
+
+  save();
+}
+
+/* ---------- scoring ---------- */
+function scoreLocation(locId, n){
+  const recs = state.records[locId]||{};
+  const days = dateRange(n);
+  const rows=[];
+  const models = MODELS();
+  // per-model accumulators
+  const acc = {}; models.forEach(m=>acc[m.key]={
+    absSum:0, maeN:0, hits:0, hitN:0,
+    biasSum:0,            // Σ(forecast − actual): + = runs wet, − = runs dry
+    missRain:0,           // model said dry, it actually rained (dangerous)
+    falseAlarm:0,         // model said rain, it stayed dry (annoying)
+    rainHits:0            // model said rain AND it rained (for POD/FAR/CSI)
+  });
+  let anyCmp = 0;  // days where actual exists AND at least one model has a value
+
+  for(const day of days){
+    const r = recs[day]||{};
+    const row = { day, actual:r.actual, vals:{}, errs:{}, hits:{} };
+    let rowHasModel = false;
+    for(const m of models){
+      const v = r[m.key];
+      row.vals[m.key] = v;
+      if(v!=null) rowHasModel = true;
+      if(r.actual!=null && v!=null){
+        const err = Math.round((v - r.actual)*10)/10;
+        row.errs[m.key] = err;
+        acc[m.key].absSum += Math.abs(v - r.actual); acc[m.key].maeN++;
+        acc[m.key].biasSum += (v - r.actual);
+        const fcWet = v>=DRY_THRESHOLD, actWet = r.actual>=DRY_THRESHOLD;
+        const hit = fcWet === actWet;
+        row.hits[m.key] = hit;
+        acc[m.key].hitN++; if(hit) acc[m.key].hits++;
+        if(actWet && fcWet) acc[m.key].rainHits++;   // correctly predicted a rain day
+        if(!hit){
+          if(actWet && !fcWet) acc[m.key].missRain++;     // rained but model said dry
+          else if(!actWet && fcWet) acc[m.key].falseAlarm++; // dry but model said rain
+        }
+      }
+    }
+    if(r.actual!=null && rowHasModel) anyCmp++;
+    if(rowHasModel || r.actual!=null) rows.push(row);
+  }
+
+  // build per-model measures (null if that model has no comparable days)
+  const mae={}, hit={}, bias={}, miss={}, falarm={}; let haveMae=false, haveHit=false;
+  const pod={}, far={}, csi={}, rainDays={};
+  for(const m of models){
+    const a=acc[m.key];
+    if(a.maeN){
+      mae[m.key]=Math.round(a.absSum/a.maeN*10)/10; haveMae=true;
+      bias[m.key]=Math.round(a.biasSum/a.maeN*10)/10;  // mean signed error
+    } else { mae[m.key]=null; bias[m.key]=null; }
+    if(a.hitN){
+      hit[m.key]=Math.round(a.hits/a.hitN*100); haveHit=true;
+      miss[m.key]=a.missRain; falarm[m.key]=a.falseAlarm;
+      // event-skill scores from the 2×2 contingency table (rain vs no-rain):
+      //   H=rainHits, M=missRain, F=falseAlarm
+      const H=a.rainHits, Mi=a.missRain, F=a.falseAlarm;
+      pod[m.key]  = (H+Mi>0) ? Math.round(H/(H+Mi)*100) : null;   // Probability of Detection
+      far[m.key]  = (H+F>0)  ? Math.round(F/(H+F)*100)  : null;   // False Alarm Ratio
+      csi[m.key]  = (H+Mi+F>0)? Math.round(H/(H+Mi+F)*100): null; // Critical Success Index
+      rainDays[m.key] = H+Mi;  // how many actual rain days there were to catch
+    } else { hit[m.key]=null; miss[m.key]=null; falarm[m.key]=null; pod[m.key]=null; far[m.key]=null; csi[m.key]=null; rainDays[m.key]=null; }
+  }
+  return {
+    rows,
+    mae: haveMae? mae : null,
+    hit: haveHit? hit : null,
+    bias: haveMae? bias : null,
+    miss: haveHit? miss : null,
+    falarm: haveHit? falarm : null,
+    pod: haveHit? pod : null,
+    far: haveHit? far : null,
+    csi: haveHit? csi : null,
+    rainDays: haveHit? rainDays : null,
+    cmpN: anyCmp
+  };
+}
+
+/* pick the model key with the lowest MAE (amount) or highest hit% (dry/wet).
+   Returns {key, tie} — tie true when the top two are equal. */
+function bestByMae(mae){
+  const entries = MODELS().map(m=>[m.key, mae[m.key]]).filter(([k,v])=>v!=null);
+  if(!entries.length) return null;
+  entries.sort((a,b)=>a[1]-b[1]);
+  const top = entries[0][1];
+  const leaders = entries.filter(([k,v])=>v===top).map(([k])=>k);
+  const tie = leaders.length>1;
+  // for MAE "level" means the best and worst are within ~0.5 mm/day
+  const spread = entries[entries.length-1][1] - top;
+  const allLevel = entries.length>1 && spread<=0.5;
+  return { key:entries[0][0], tie, leaders, value:top, allLevel };
+}
+function bestByHit(hit){
+  const entries = MODELS().map(m=>[m.key, hit[m.key]]).filter(([k,v])=>v!=null);
+  if(!entries.length) return null;
+  entries.sort((a,b)=>b[1]-a[1]);
+  const top = entries[0][1];
+  const leaders = entries.filter(([k,v])=>v===top).map(([k])=>k);  // all models sharing the top score
+  const tie = leaders.length>1;
+  // "all level" only when the spread is genuinely small (top vs bottom within 1 step)
+  const spread = top - entries[entries.length-1][1];
+  const allLevel = entries.length>1 && spread<=0.5;
+  return { key:entries[0][0], tie, leaders, value:top, allLevel };
+}
+function modelLabel(key){ return T().models[key] || key; }
+function modelCss(key){ const m=MODELS().find(x=>x.key===key); return m?m.cssVar:"--m1"; }
+
+/* Dense rank of each model on a metric. dir="asc" → lower value is rank 1 (MAE);
+   dir="desc" → higher value is rank 1 (dry/wet). Ties share a rank (1,1,1,2…).
+   Returns { key: rankNumber }. Models with null values are omitted. */
+function rankBy(values, dir){
+  const entries = MODELS().map(m=>[m.key, values?values[m.key]:null]).filter(([k,v])=>v!=null);
+  entries.sort((a,b)=> dir==="asc" ? a[1]-b[1] : b[1]-a[1]);
+  const ranks={}; let rank=0, prev=null;
+  for(const [k,v] of entries){
+    if(prev===null || v!==prev){ rank++; prev=v; }
+    ranks[k]=rank;
+  }
+  return ranks;
+}
+
+/* ---------- rendering ---------- */
+const $ = s=>document.querySelector(s);
+function applyStaticText(){
+  const t=T();
+  $("#brandName").textContent=t.brandNameShort||t.brandName; $("#brandSub").textContent=t.brandSub;
+  { const fb=$("#btnFetchAll"); if(fb) fb.title=t.driveTitle; }
+  { const rb=$("#btnResults"); if(rb) rb.title=t.resTitleBtn; }
+  $("#langBtn").textContent=t.langBtn;
+  $("#t_locations").textContent=t.locations;
+  $("#formTitle").textContent = editingId? t.update : t.addloc2.replace(/^\+\s*/,"");
+  $("#btnOpenAdd").title = t.addloc2.replace(/^\+\s*/,"");
+  $("#t_locname").textContent=t.locname; $("#t_lat").textContent=t.lat; $("#t_lon").textContent=t.lon;
+  $("#inName").placeholder=t.namePh;
+  $("#t_gps").textContent=t.gps;
+  $("#btnAdd").textContent = editingId? t.update : t.save;
+  if(editingId){ $("#btnCancelEdit").textContent=t.cancel;
+    const loc=state.locations.find(l=>l.id===editingId);
+    if(loc) $("#editingTag").textContent=t.editing(loc.name); }
+  $("#t_data").textContent=t.data; $("#t_sync").textContent=t.sync;
+  const ex=$("#t_export"); if(ex) ex.textContent=t.exportCsv;
+  $("#howNote").textContent=t.how;
+  renderSyncStatus();
+  document.documentElement.lang = LANG==="zh"?"zh":"en";
+}
+function activeLocs(){ return state.locations.filter(l=>!l.deleted); }
+function deletedLocs(){ return state.locations.filter(l=>l.deleted); }
+
+let expandedGroups = null;  // Set of expanded region names; null = not yet initialised
+function renderLocList(){
+  const t=T(), box=$("#locList");
+  const all = activeLocs();
+  // show the filter box once the list gets long
+  const filterEl=$("#locFilter");
+  if(filterEl){
+    filterEl.style.display = all.length>12 ? "block" : "none";
+    filterEl.placeholder = t.filterPlaceholder;
+  }
+  const q = (filterEl && filterEl.style.display!=="none" ? filterEl.value : "").trim().toLowerCase();
+  const filtering = q.length>0;
+
+  if(!all.length){
+    box.innerHTML=`<div class="empty"><div class="big">${t.emptyLocBig}</div>${t.emptyLoc}</div>`;
+    $("#syncCard").style.display = deletedLocs().length?"block":"none";
+    if(!all.length && !deletedLocs().length) $("#syncCard").style.display="none";
+    renderBin(); return;
+  }
+  $("#syncCard").style.display="block";
+
+  // If few locations, keep the simple flat list (no grouping needed).
+  const useGroups = all.length>12;
+  const live = filtering ? all.filter(l=>l.name.toLowerCase().includes(q)) : all;
+
+  box.innerHTML="";
+  if(filtering && !live.length){
+    box.innerHTML=`<div class="empty" style="padding:18px">${t.noMatch}</div>`;
+    renderBin(); return;
+  }
+
+  const makeRow = (loc)=>{
+    const el=document.createElement("div");
+    el.className="loc"+(loc.id===activeLoc?" active":"");
+    el.innerHTML=`<div><div class="nm">${esc(loc.name)}</div>
+      <div class="co">${(+loc.lat).toFixed(4)}, ${(+loc.lon).toFixed(4)}</div></div>
+      <div class="loc-actions">
+        <button class="icon-btn" data-edit="${loc.id}" title="${t.edit}">✎</button>
+        <button class="icon-btn del" data-del="${loc.id}" title="${t.del}">🗑</button>
+      </div>`;
+    el.addEventListener("click",e=>{
+      if(e.target.dataset.edit!=null){ startEdit(loc.id); return; }
+      if(e.target.dataset.del!=null){ softDelLoc(loc.id); return; }
+      activeLoc=loc.id;
+      if(loc.region && expandedGroups) expandedGroups.add(loc.region); // keep selection visible
+      renderAll();
+      // if this farm has no records yet (e.g. bulk fetch skipped or missed it), fetch now
+      const r = state.records[loc.id];
+      const hasData = r && Object.keys(r).length>0;
+      if(!hasData) doSync();
+    });
+    return el;
+  };
+
+  if(!useGroups){
+    for(const loc of live) box.appendChild(makeRow(loc));
+    renderBin(); return;
+  }
+
+  // ----- grouped accordion -----
+  // group live locations by region (fallback bucket for any without one)
+  const groups = new Map();
+  for(const loc of live){
+    const g = loc.region || t.ungrouped;
+    if(!groups.has(g)) groups.set(g, []);
+    groups.get(g).push(loc);
+  }
+  // All regions start collapsed (so a big region never floods the screen). The
+  // group holding the active farm shows that farm's name in its header instead,
+  // so the selection stays visible without expanding. User taps control the rest.
+  if(expandedGroups===null) expandedGroups = new Set();
+
+  for(const [region, locs] of groups){
+    // expanded if filtering (to surface matches) or the user has tapped it open.
+    const open = filtering || expandedGroups.has(region);
+    const activeInGroup = locs.find(l=>l.id===activeLoc);
+    const hasActive = !!activeInGroup;
+
+    const head=document.createElement("div");
+    head.className="loc-group-h"+(open?" open":"")+(hasActive?" has-active":"");
+    // when collapsed AND holding the active farm, name that farm in the header
+    const activeTag = (!open && hasActive)
+      ? `<span class="lg-active">${esc(activeInGroup.name)}</span>` : "";
+    const refreshBtn = open
+      ? `<button class="lg-refresh" title="${esc(t.updateRegion)}">↻</button>` : "";
+    head.innerHTML=`<span class="lg-caret">${open?"▾":"▸"}</span>
+      <span class="lg-name">${esc(region)}</span>
+      ${activeTag}
+      ${refreshBtn}
+      <span class="lg-count">${locs.length}</span>`;
+    if(!filtering){
+      head.addEventListener("click",(e)=>{
+        if(e.target.classList.contains("lg-refresh")) return;  // handled separately
+        if(expandedGroups.has(region)) expandedGroups.delete(region);
+        else expandedGroups.add(region);
+        renderLocList();
+      });
+    }
+    if(open){
+      const rb = head.querySelector(".lg-refresh");
+      if(rb) rb.addEventListener("click",(e)=>{ e.stopPropagation(); refreshRegion(region); });
+    }
+    box.appendChild(head);
+
+    if(open){
+      const wrap=document.createElement("div");
+      wrap.className="loc-group-body";
+      for(const loc of locs) wrap.appendChild(makeRow(loc));
+      box.appendChild(wrap);
+    }
+  }
+  renderBin();
+}
+
+function renderBin(){
+  const t=T(), mount=$("#binMount");
+  const gone = deletedLocs();
+  if(!gone.length){ mount.innerHTML=""; return; }
+  let items="";
+  for(const loc of gone){
+    items+=`<div class="loc deleted">
+      <div><div class="nm">${esc(loc.name)}</div>
+        <div class="co">${(+loc.lat).toFixed(4)}, ${(+loc.lon).toFixed(4)}</div></div>
+      <div class="loc-actions">
+        <button class="icon-btn" data-restore="${loc.id}">↩ ${t.restore}</button>
+      </div></div>`;
+  }
+  mount.innerHTML=`<details class="bin">
+    <summary>${t.bin(gone.length)}</summary>
+    <div class="loc-list" style="margin-top:8px">${items}</div>
+    <button class="purge-btn" id="btnPurge" type="button">🗑 ${t.purge}</button>
+  </details>`;
+  mount.querySelectorAll("[data-restore]").forEach(b=>
+    b.addEventListener("click",()=>restoreLoc(b.dataset.restore)));
+  $("#btnPurge").addEventListener("click",purgeBin);
+}
+function renderVerdict(){
+  const mount=$("#verdictMount"), t=T();
+  if(!activeLoc){ mount.innerHTML=`<div class="card"><div class="empty">${t.pickLoc}</div></div>`; return; }
+  const loc=state.locations.find(l=>l.id===activeLoc);
+  const sc=scoreLocation(activeLoc, range);
+  if(!sc.mae){ mount.innerHTML=`<div class="card"><div class="empty">${t.noData}</div></div>`; return; }
+
+  const winMae = bestByMae(sc.mae);
+  const winHit = sc.hit? bestByHit(sc.hit) : null;
+  // dense ranks: MAE lower-is-better, dry/wet higher-is-better
+  const maeRank = rankBy(sc.mae, "asc");
+  const hitRank = sc.hit ? rankBy(sc.hit, "desc") : {};
+
+  // model columns
+  let cols="";
+  for(const m of MODELS()){
+    const isBaseline = m.key==="ifs";
+    const maeWin = winMae && winMae.key===m.key && !winMae.tie;
+    const maeVal = sc.mae[m.key]==null? "—" : sc.mae[m.key];
+    const hitVal = (sc.hit && sc.hit[m.key]!=null)? sc.hit[m.key] : null;
+    const maeBadge = maeRank[m.key]? `<span class="rankb ${maeRank[m.key]===1?'r1':''}">#${maeRank[m.key]}</span>` : "";
+    const hitBadge = hitRank[m.key]? `<span class="rankb ${hitRank[m.key]===1?'r1':''}">#${hitRank[m.key]}</span>` : "";
+    // bias direction: + runs wet, − runs dry
+    const bz = sc.bias? sc.bias[m.key] : null;
+    const biasLine = (bz==null)? "" :
+      `<div class="subm">${bz>0?`<span class="bias wet">+${bz} ${t.biasWet}</span>`
+                          : bz<0?`<span class="bias dry">${bz} ${t.biasDry}</span>`
+                          : `<span class="bias zero">${t.biasNone}</span>`}</div>`;
+    // missed-rain vs false-alarm counts
+    const mr2 = sc.miss? sc.miss[m.key] : null;
+    const fa  = sc.falarm? sc.falarm[m.key] : null;
+    const errLine = (mr2==null && fa==null)? "" :
+      `<div class="subm errsplit">
+         <span class="miss" title="${t.missRainFull}">⚠ ${mr2||0} ${t.missRain}</span>
+         <span class="fa" title="${t.falseAlarmFull}">○ ${fa||0} ${t.falseAlarm}</span>
+       </div>`;
+    cols += `
+      <div class="mcol ${maeWin?'winner':''}" style="--mc:var(${m.cssVar})">
+        ${maeWin?`<div class="crown">${t.winner}</div>`:''}
+        <div class="mname" style="color:var(${m.cssVar})">${modelLabel(m.key)}</div>
+        ${isBaseline?`<div class="basetag">${t.baseline}</div>`:'<div class="basetag">&nbsp;</div>'}
+        <div class="metric"><div class="mlabel">${t.mae} ${maeBadge}</div>
+          <div class="mval">${maeVal}<span class="munit"> ${t.maeUnit}</span></div>
+          ${biasLine}</div>
+        ${hitVal!=null?`<div class="metric"><div class="mlabel">${t.hit} ${hitBadge}</div>
+          <div class="mval">${hitVal}<span class="munit">%</span></div>
+          ${errLine}</div>`:''}
+      </div>`;
+  }
+
+  // verdict lines
+  const W=(key)=>({name:modelLabel(key), cls:cssClassFor(key)});
+  // join model names with the language's list separator
+  const joinNames = (keys)=> keys.map(k=>`<b class="${cssClassFor(k)}">${modelLabel(k)}</b>`).join(t.listSep);
+  // amount line
+  let amtLine;
+  if(winMae.allLevel) amtLine = t.tieAmt;                       // genuinely all close
+  else if(winMae.tie)  amtLine = t.coLeadAmt(joinNames(winMae.leaders));  // 2+ share the top
+  else                 amtLine = t.bestAmt(W(winMae.key));      // single winner
+  // dry/wet line
+  let hitLine = "";
+  if(winHit){
+    if(winHit.allLevel) hitLine = t.tieHit;
+    else if(winHit.tie) hitLine = t.coLeadHit(joinNames(winHit.leaders));
+    else                hitLine = t.bestHit(W(winHit.key));
+  }
+
+  // baseline recommendation: does a non-IFS model beat IFS on amount?
+  let baseLine = "";
+  if(winMae && !winMae.tie){
+    if(winMae.key==="ifs") baseLine = t.baseIsBest;
+    else baseLine = t.betterThanBase(W(winMae.key));
+  } else if(winMae && winMae.tie && winMae.leaders.includes("ifs")){
+    baseLine = t.baseIsBest;  // IFS is among the joint winners → no need to switch
+  }
+
+  mount.innerHTML=`
+  <div class="verdict">
+    <div class="head">
+      <div class="loc-nm">${esc(loc.name)}</div>
+      <div class="span">${sc.cmpN} ${t.days} · ${range}d ${confidencePill(sc.cmpN)}</div>
+    </div>
+    <div class="vs vs3">${cols}</div>
+    <div class="line">${amtLine}${hitLine?"<br>"+hitLine:""}</div>
+    ${baseLine?`<div class="baseline-rec">${baseLine}</div>`:''}
+    <div class="dualnote">${t.dualnote}</div>
+    <button class="share-btn" id="btnShare" type="button">${t.shareWA}</button>
+  </div>`;
+  const sb=$("#btnShare");
+  if(sb) sb.addEventListener("click", ()=>shareVerdict(loc, sc));
+}
+
+/* Confidence in the ranking, based on how many days have been scored. The dry/wet
+   metric especially needs ~2+ weeks before differences mean much. */
+function confidenceLevel(cmpN){
+  if(cmpN < 8)  return "low";
+  if(cmpN < 20) return "mid";
+  return "high";
+}
+function confidencePill(cmpN){
+  const t=T(), lvl=confidenceLevel(cmpN);
+  const label = lvl==="low"? t.confLow : lvl==="mid"? t.confMid : t.confHigh;
+  return `<span class="conf conf-${lvl}">${label}</span>`;
+}
+/* map a model key to its verdict-text colour class (defined inline below) */
+function cssClassFor(key){
+  // colour the verdict text to match the card's slot colour (positional), so a
+  // subset selection stays visually consistent between cards and sentences.
+  const idx = MODELS().findIndex(m=>m.key===key);
+  return idx>=0 ? "m-slot"+(idx+1) : "m-slot1";
+}
+
+/* Build a plain-text WhatsApp summary of a location's scorecard. Mirrors the
+   verdict card but as text a farmer can read in a chat. No HTML, no colours. */
+function buildShareText(loc, sc){
+  const t=T();
+  const lines=[];
+  lines.push(`🌧️ ${t.brandName} — ${loc.name}`);
+  // header with confidence so the reader knows how much to trust it
+  const confTxt = t["conf"+(confidenceLevel(sc.cmpN).charAt(0).toUpperCase()+confidenceLevel(sc.cmpN).slice(1))];
+  lines.push(`${sc.cmpN} ${t.days} · ${range}d · ${confTxt}`);
+  lines.push("");
+  // per-model: MAE (with bias direction) and dry/wet (with missed/false counts)
+  for(const m of MODELS()){
+    const mae = sc.mae && sc.mae[m.key]!=null ? sc.mae[m.key] : null;
+    const hit = sc.hit && sc.hit[m.key]!=null ? sc.hit[m.key] : null;
+    if(mae==null && hit==null) continue;
+    const base = m.key==="ifs" ? ` (${t.baseline})` : "";
+    lines.push(`${modelLabel(m.key)}${base}`);
+    if(mae!=null){
+      const bz = sc.bias? sc.bias[m.key] : null;
+      const biasTxt = (bz==null||bz===0)? "" :
+        (bz>0 ? ` (+${bz} ${t.biasWet})` : ` (${bz} ${t.biasDry})`);
+      lines.push(`  ${t.mae}: ${mae} ${t.maeUnit}${biasTxt}`);
+    }
+    if(hit!=null){
+      const mr = sc.miss? (sc.miss[m.key]||0) : 0;
+      const fa = sc.falarm? (sc.falarm[m.key]||0) : 0;
+      lines.push(`  ${t.hit}: ${hit}% (${t.missRain} ${mr} · ${t.falseAlarm} ${fa})`);
+    }
+  }
+  lines.push("");
+  // verdict sentences (strip any HTML tags from the i18n strings)
+  const winMae = bestByMae(sc.mae);
+  const winHit = sc.hit? bestByHit(sc.hit) : null;
+  const strip = s => s.replace(/<[^>]+>/g,"");
+  const plainNames = (keys)=> keys.map(k=>modelLabel(k)).join(t.listSep);
+  if(winMae){
+    if(winMae.allLevel) lines.push(strip(t.tieAmt));
+    else if(winMae.tie) lines.push(strip(t.coLeadAmt(plainNames(winMae.leaders))));
+    else lines.push(strip(t.bestAmt({name:modelLabel(winMae.key),cls:""})));
+  }
+  if(winHit){
+    if(winHit.allLevel) lines.push(strip(t.tieHit));
+    else if(winHit.tie) lines.push(strip(t.coLeadHit(plainNames(winHit.leaders))));
+    else lines.push(strip(t.bestHit({name:modelLabel(winHit.key),cls:""})));
+  }
+  if(winMae && (!winMae.tie || winMae.leaders.includes("ifs"))){
+    lines.push("");
+    if(winMae.key==="ifs" || (winMae.tie && winMae.leaders.includes("ifs")))
+      lines.push(strip(t.baseIsBest));
+    else
+      lines.push(strip(t.betterThanBase({name:modelLabel(winMae.key),cls:""})));
+  }
+  return lines.join("\n");
+}
+
+/* ---------- CSV export (tidy / long format for R, Python, Excel) ----------
+   One row per (date × model): the raw paired data a statistician needs to run
+   their own verification — RMSE, POD/FAR, bootstrap CIs, whatever they prefer. */
+function buildCSV(loc, n){
+  const sc = scoreLocation(loc.id, n);
+  const models = MODELS();
+  const rows = [];
+  // header — documents lead time and ground truth so the file is self-describing
+  rows.push([
+    "location","latitude","longitude","date","model","model_api",
+    "forecast_mm","actual_mm","error_mm","forecast_wet","actual_wet","drywet_correct",
+    "lead_time","ground_truth"
+  ].join(","));
+  const LEAD = "24h (precipitation_previous_day1)";
+  const GT = "ERA5 reanalysis (archive-api)";
+  const esc = s => {
+    const v = String(s==null?"":s);
+    return /[",\n]/.test(v) ? `"${v.replace(/"/g,'""')}"` : v;
+  };
+  for(const r of sc.rows){
+    for(const m of models){
+      const f = r.vals[m.key];
+      if(f==null && r.actual==null) continue;
+      const a = r.actual;
+      const err = (f!=null && a!=null) ? Math.round((f-a)*10)/10 : "";
+      const fWet = f!=null ? (f>=DRY_THRESHOLD?1:0) : "";
+      const aWet = a!=null ? (a>=DRY_THRESHOLD?1:0) : "";
+      const correct = (f!=null && a!=null) ? ((fWet===aWet)?1:0) : "";
+      rows.push([
+        esc(loc.name), loc.lat, loc.lon, r.day, m.key, m.api,
+        f==null?"":f, a==null?"":a, err, fWet, aWet, correct,
+        esc(LEAD), esc(GT)
+      ].join(","));
+    }
+  }
+  return rows.join("\n");
+}
+function exportXLS(){
+  if(!activeLoc) return;
+  const loc = state.locations.find(l=>l.id===activeLoc);
+  if(!loc) return;
+  const sc = scoreLocation(loc.id, range);
+  const models = MODELS();
+  const LEAD = "24h (precipitation_previous_day1)";
+  const GT = "ERA5 reanalysis (archive-api)";
+
+  // Sheet 1 — tidy long data, one row per (date × model)
+  const header = ["location","latitude","longitude","date","model","model_api",
+    "forecast_mm","actual_mm","error_mm","forecast_wet","actual_wet","drywet_correct",
+    "lead_time","ground_truth"];
+  const aoa = [header];
+  for(const r of sc.rows){
+    for(const m of models){
+      const f = r.vals[m.key];
+      if(f==null && r.actual==null) continue;
+      const a = r.actual;
+      const err = (f!=null && a!=null) ? Math.round((f-a)*10)/10 : "";
+      const fWet = f!=null ? (f>=DRY_THRESHOLD?1:0) : "";
+      const aWet = a!=null ? (a>=DRY_THRESHOLD?1:0) : "";
+      const correct = (f!=null && a!=null) ? ((fWet===aWet)?1:0) : "";
+      aoa.push([
+        loc.name, loc.lat, loc.lon, r.day, m.key, m.api,
+        f==null?"":f, a==null?"":a, err===""?"":err, fWet, aWet, correct,
+        LEAD, GT
+      ]);
+    }
+  }
+  const ws = XLSX.utils.aoa_to_sheet(aoa);
+  ws["!cols"] = [{wch:20},{wch:10},{wch:10},{wch:11},{wch:7},{wch:24},
+    {wch:11},{wch:9},{wch:9},{wch:12},{wch:11},{wch:13},{wch:32},{wch:30}];
+  ws["!autofilter"] = {ref:`A1:N${aoa.length}`};
+
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, T().dataSheet||"Daily data");
+
+  const stamp = todayYMD();
+  const safe = (loc.name||"location").replace(/[^\w\u4e00-\u9fff-]+/g,"_").slice(0,40);
+  XLSX.writeFile(wb, `rainscore_${safe}_${range}d_${stamp}.xlsx`);
+}
+
+/* Open a preview modal with the editable message. The farmer can tweak the text
+   or add a personal note before sending — then Send opens WhatsApp / share sheet. */
+function shareVerdict(loc, sc){
+  const text = buildShareText(loc, sc);
+  openShareModal(text);
+}
+
+let shareModalEl = null;
+function openShareModal(initialText){
+  const t = T();
+  closeShareModal();  // ensure only one
+  const ov = document.createElement("div");
+  ov.className = "modal-ov";
+  ov.innerHTML = `
+    <div class="modal" role="dialog" aria-modal="true">
+      <div class="modal-head">
+        <span>${t.previewTitle}</span>
+        <button class="icon-btn" id="shClose" aria-label="Close">✕</button>
+      </div>
+      <div class="modal-hint">${t.previewHint}</div>
+      <textarea id="shText" class="modal-ta" rows="12" aria-label="${t.previewTitle}"></textarea>
+      <div class="modal-actions">
+        <button class="btn btn-ghost" id="shCopy" type="button">${t.copyBtn}</button>
+        <button class="btn share-btn" id="shSend" type="button" style="margin-top:0">${t.sendWA}</button>
+      </div>
+    </div>`;
+  document.body.appendChild(ov);
+  shareModalEl = ov;
+  const ta = ov.querySelector("#shText");
+  ta.value = initialText;
+  // close on overlay click (but not when clicking inside the modal)
+  ov.addEventListener("click", e=>{ if(e.target===ov) closeShareModal(); });
+  ov.querySelector("#shClose").addEventListener("click", closeShareModal);
+  ov.querySelector("#shCopy").addEventListener("click", async ()=>{
+    try{ await navigator.clipboard.writeText(ta.value); showToast(T().copied); }
+    catch(e){ ta.select(); document.execCommand && document.execCommand("copy"); showToast(T().copied); }
+  });
+  ov.querySelector("#shSend").addEventListener("click", ()=> sendToWhatsApp(ta.value));
+}
+function closeShareModal(){
+  if(shareModalEl){ shareModalEl.remove(); shareModalEl=null; }
+}
+
+/* Send the (possibly edited) text. Native share sheet first, then wa.me, then clipboard. */
+async function sendToWhatsApp(text){
+  closeShareModal();
+  if(navigator.share){
+    try{ await navigator.share({ text }); return; }
+    catch(e){ if(e && e.name==="AbortError") return; }
+  }
+  const wa = "https://wa.me/?text=" + encodeURIComponent(text);
+  const win = window.open(wa, "_blank");
+  if(win) return;
+  try{ await navigator.clipboard.writeText(text); showToast(T().copied); }
+  catch(e){ showToast(T().shareFail); }
+}
+
+/* ---------- info guide ---------- */
+const APP_URL = "https://stanleywoosweeleong.github.io/Rainscore-lab/";
+const GITHUB_URL = "https://github.com/stanleywoosweeleong/Rainscore-lab";
+// QR code for APP_URL, embedded as an inline SVG path (offline — no external service).
+const QR_N = 37;
+const QR_PATH = "M2 2h1v1h-1zM3 2h1v1h-1zM4 2h1v1h-1zM5 2h1v1h-1zM6 2h1v1h-1zM7 2h1v1h-1zM8 2h1v1h-1zM10 2h1v1h-1zM12 2h1v1h-1zM13 2h1v1h-1zM14 2h1v1h-1zM16 2h1v1h-1zM20 2h1v1h-1zM24 2h1v1h-1zM28 2h1v1h-1zM29 2h1v1h-1zM30 2h1v1h-1zM31 2h1v1h-1zM32 2h1v1h-1zM33 2h1v1h-1zM34 2h1v1h-1zM2 3h1v1h-1zM8 3h1v1h-1zM10 3h1v1h-1zM11 3h1v1h-1zM12 3h1v1h-1zM13 3h1v1h-1zM14 3h1v1h-1zM18 3h1v1h-1zM19 3h1v1h-1zM21 3h1v1h-1zM23 3h1v1h-1zM24 3h1v1h-1zM26 3h1v1h-1zM28 3h1v1h-1zM34 3h1v1h-1zM2 4h1v1h-1zM4 4h1v1h-1zM5 4h1v1h-1zM6 4h1v1h-1zM8 4h1v1h-1zM10 4h1v1h-1zM14 4h1v1h-1zM19 4h1v1h-1zM20 4h1v1h-1zM21 4h1v1h-1zM22 4h1v1h-1zM23 4h1v1h-1zM28 4h1v1h-1zM30 4h1v1h-1zM31 4h1v1h-1zM32 4h1v1h-1zM34 4h1v1h-1zM2 5h1v1h-1zM4 5h1v1h-1zM5 5h1v1h-1zM6 5h1v1h-1zM8 5h1v1h-1zM12 5h1v1h-1zM13 5h1v1h-1zM14 5h1v1h-1zM22 5h1v1h-1zM23 5h1v1h-1zM25 5h1v1h-1zM26 5h1v1h-1zM28 5h1v1h-1zM30 5h1v1h-1zM31 5h1v1h-1zM32 5h1v1h-1zM34 5h1v1h-1zM2 6h1v1h-1zM4 6h1v1h-1zM5 6h1v1h-1zM6 6h1v1h-1zM8 6h1v1h-1zM10 6h1v1h-1zM11 6h1v1h-1zM12 6h1v1h-1zM14 6h1v1h-1zM15 6h1v1h-1zM16 6h1v1h-1zM17 6h1v1h-1zM19 6h1v1h-1zM20 6h1v1h-1zM22 6h1v1h-1zM23 6h1v1h-1zM24 6h1v1h-1zM28 6h1v1h-1zM30 6h1v1h-1zM31 6h1v1h-1zM32 6h1v1h-1zM34 6h1v1h-1zM2 7h1v1h-1zM8 7h1v1h-1zM11 7h1v1h-1zM12 7h1v1h-1zM13 7h1v1h-1zM19 7h1v1h-1zM22 7h1v1h-1zM25 7h1v1h-1zM28 7h1v1h-1zM34 7h1v1h-1zM2 8h1v1h-1zM3 8h1v1h-1zM4 8h1v1h-1zM5 8h1v1h-1zM6 8h1v1h-1zM7 8h1v1h-1zM8 8h1v1h-1zM10 8h1v1h-1zM12 8h1v1h-1zM14 8h1v1h-1zM16 8h1v1h-1zM18 8h1v1h-1zM20 8h1v1h-1zM22 8h1v1h-1zM24 8h1v1h-1zM26 8h1v1h-1zM28 8h1v1h-1zM29 8h1v1h-1zM30 8h1v1h-1zM31 8h1v1h-1zM32 8h1v1h-1zM33 8h1v1h-1zM34 8h1v1h-1zM11 9h1v1h-1zM14 9h1v1h-1zM15 9h1v1h-1zM24 9h1v1h-1zM25 9h1v1h-1zM26 9h1v1h-1zM2 10h1v1h-1zM5 10h1v1h-1zM6 10h1v1h-1zM7 10h1v1h-1zM8 10h1v1h-1zM9 10h1v1h-1zM10 10h1v1h-1zM12 10h1v1h-1zM13 10h1v1h-1zM14 10h1v1h-1zM16 10h1v1h-1zM17 10h1v1h-1zM18 10h1v1h-1zM19 10h1v1h-1zM26 10h1v1h-1zM27 10h1v1h-1zM30 10h1v1h-1zM32 10h1v1h-1zM33 10h1v1h-1zM34 10h1v1h-1zM4 11h1v1h-1zM5 11h1v1h-1zM6 11h1v1h-1zM7 11h1v1h-1zM12 11h1v1h-1zM13 11h1v1h-1zM14 11h1v1h-1zM17 11h1v1h-1zM20 11h1v1h-1zM21 11h1v1h-1zM25 11h1v1h-1zM30 11h1v1h-1zM31 11h1v1h-1zM32 11h1v1h-1zM4 12h1v1h-1zM8 12h1v1h-1zM9 12h1v1h-1zM11 12h1v1h-1zM16 12h1v1h-1zM17 12h1v1h-1zM19 12h1v1h-1zM20 12h1v1h-1zM25 12h1v1h-1zM26 12h1v1h-1zM28 12h1v1h-1zM30 12h1v1h-1zM31 12h1v1h-1zM32 12h1v1h-1zM33 12h1v1h-1zM34 12h1v1h-1zM2 13h1v1h-1zM3 13h1v1h-1zM4 13h1v1h-1zM7 13h1v1h-1zM9 13h1v1h-1zM10 13h1v1h-1zM11 13h1v1h-1zM13 13h1v1h-1zM14 13h1v1h-1zM16 13h1v1h-1zM17 13h1v1h-1zM19 13h1v1h-1zM21 13h1v1h-1zM22 13h1v1h-1zM24 13h1v1h-1zM28 13h1v1h-1zM29 13h1v1h-1zM32 13h1v1h-1zM33 13h1v1h-1zM5 14h1v1h-1zM7 14h1v1h-1zM8 14h1v1h-1zM9 14h1v1h-1zM12 14h1v1h-1zM15 14h1v1h-1zM16 14h1v1h-1zM18 14h1v1h-1zM19 14h1v1h-1zM20 14h1v1h-1zM21 14h1v1h-1zM22 14h1v1h-1zM26 14h1v1h-1zM28 14h1v1h-1zM30 14h1v1h-1zM34 14h1v1h-1zM2 15h1v1h-1zM5 15h1v1h-1zM7 15h1v1h-1zM9 15h1v1h-1zM11 15h1v1h-1zM13 15h1v1h-1zM15 15h1v1h-1zM18 15h1v1h-1zM19 15h1v1h-1zM22 15h1v1h-1zM23 15h1v1h-1zM25 15h1v1h-1zM27 15h1v1h-1zM29 15h1v1h-1zM32 15h1v1h-1zM2 16h1v1h-1zM3 16h1v1h-1zM4 16h1v1h-1zM5 16h1v1h-1zM6 16h1v1h-1zM7 16h1v1h-1zM8 16h1v1h-1zM18 16h1v1h-1zM21 16h1v1h-1zM23 16h1v1h-1zM24 16h1v1h-1zM28 16h1v1h-1zM2 17h1v1h-1zM3 17h1v1h-1zM13 17h1v1h-1zM14 17h1v1h-1zM16 17h1v1h-1zM17 17h1v1h-1zM20 17h1v1h-1zM21 17h1v1h-1zM22 17h1v1h-1zM25 17h1v1h-1zM26 17h1v1h-1zM27 17h1v1h-1zM29 17h1v1h-1zM32 17h1v1h-1zM34 17h1v1h-1zM2 18h1v1h-1zM3 18h1v1h-1zM5 18h1v1h-1zM6 18h1v1h-1zM7 18h1v1h-1zM8 18h1v1h-1zM12 18h1v1h-1zM13 18h1v1h-1zM14 18h1v1h-1zM15 18h1v1h-1zM16 18h1v1h-1zM24 18h1v1h-1zM25 18h1v1h-1zM26 18h1v1h-1zM27 18h1v1h-1zM28 18h1v1h-1zM29 18h1v1h-1zM30 18h1v1h-1zM31 18h1v1h-1zM2 19h1v1h-1zM9 19h1v1h-1zM10 19h1v1h-1zM12 19h1v1h-1zM14 19h1v1h-1zM15 19h1v1h-1zM16 19h1v1h-1zM17 19h1v1h-1zM18 19h1v1h-1zM20 19h1v1h-1zM21 19h1v1h-1zM22 19h1v1h-1zM27 19h1v1h-1zM28 19h1v1h-1zM30 19h1v1h-1zM32 19h1v1h-1zM33 19h1v1h-1zM34 19h1v1h-1zM3 20h1v1h-1zM6 20h1v1h-1zM8 20h1v1h-1zM9 20h1v1h-1zM11 20h1v1h-1zM12 20h1v1h-1zM17 20h1v1h-1zM21 20h1v1h-1zM23 20h1v1h-1zM25 20h1v1h-1zM27 20h1v1h-1zM28 20h1v1h-1zM29 20h1v1h-1zM31 20h1v1h-1zM32 20h1v1h-1zM34 20h1v1h-1zM2 21h1v1h-1zM5 21h1v1h-1zM10 21h1v1h-1zM12 21h1v1h-1zM14 21h1v1h-1zM16 21h1v1h-1zM17 21h1v1h-1zM18 21h1v1h-1zM19 21h1v1h-1zM20 21h1v1h-1zM22 21h1v1h-1zM24 21h1v1h-1zM26 21h1v1h-1zM28 21h1v1h-1zM30 21h1v1h-1zM31 21h1v1h-1zM32 21h1v1h-1zM33 21h1v1h-1zM34 21h1v1h-1zM2 22h1v1h-1zM3 22h1v1h-1zM4 22h1v1h-1zM6 22h1v1h-1zM7 22h1v1h-1zM8 22h1v1h-1zM13 22h1v1h-1zM15 22h1v1h-1zM16 22h1v1h-1zM17 22h1v1h-1zM21 22h1v1h-1zM24 22h1v1h-1zM29 22h1v1h-1zM31 22h1v1h-1zM33 22h1v1h-1zM34 22h1v1h-1zM2 23h1v1h-1zM3 23h1v1h-1zM4 23h1v1h-1zM5 23h1v1h-1zM9 23h1v1h-1zM10 23h1v1h-1zM15 23h1v1h-1zM16 23h1v1h-1zM18 23h1v1h-1zM20 23h1v1h-1zM21 23h1v1h-1zM24 23h1v1h-1zM25 23h1v1h-1zM30 23h1v1h-1zM31 23h1v1h-1zM2 24h1v1h-1zM4 24h1v1h-1zM8 24h1v1h-1zM9 24h1v1h-1zM10 24h1v1h-1zM13 24h1v1h-1zM17 24h1v1h-1zM18 24h1v1h-1zM19 24h1v1h-1zM24 24h1v1h-1zM25 24h1v1h-1zM26 24h1v1h-1zM28 24h1v1h-1zM30 24h1v1h-1zM31 24h1v1h-1zM33 24h1v1h-1zM34 24h1v1h-1zM2 25h1v1h-1zM6 25h1v1h-1zM9 25h1v1h-1zM10 25h1v1h-1zM14 25h1v1h-1zM15 25h1v1h-1zM18 25h1v1h-1zM19 25h1v1h-1zM27 25h1v1h-1zM28 25h1v1h-1zM29 25h1v1h-1zM32 25h1v1h-1zM2 26h1v1h-1zM3 26h1v1h-1zM5 26h1v1h-1zM6 26h1v1h-1zM7 26h1v1h-1zM8 26h1v1h-1zM10 26h1v1h-1zM12 26h1v1h-1zM13 26h1v1h-1zM15 26h1v1h-1zM16 26h1v1h-1zM17 26h1v1h-1zM18 26h1v1h-1zM21 26h1v1h-1zM26 26h1v1h-1zM27 26h1v1h-1zM28 26h1v1h-1zM29 26h1v1h-1zM30 26h1v1h-1zM31 26h1v1h-1zM34 26h1v1h-1zM10 27h1v1h-1zM11 27h1v1h-1zM13 27h1v1h-1zM17 27h1v1h-1zM18 27h1v1h-1zM20 27h1v1h-1zM23 27h1v1h-1zM26 27h1v1h-1zM30 27h1v1h-1zM32 27h1v1h-1zM33 27h1v1h-1zM2 28h1v1h-1zM3 28h1v1h-1zM4 28h1v1h-1zM5 28h1v1h-1zM6 28h1v1h-1zM7 28h1v1h-1zM8 28h1v1h-1zM10 28h1v1h-1zM13 28h1v1h-1zM14 28h1v1h-1zM16 28h1v1h-1zM17 28h1v1h-1zM18 28h1v1h-1zM20 28h1v1h-1zM21 28h1v1h-1zM22 28h1v1h-1zM23 28h1v1h-1zM25 28h1v1h-1zM26 28h1v1h-1zM28 28h1v1h-1zM30 28h1v1h-1zM32 28h1v1h-1zM2 29h1v1h-1zM8 29h1v1h-1zM10 29h1v1h-1zM11 29h1v1h-1zM14 29h1v1h-1zM16 29h1v1h-1zM17 29h1v1h-1zM21 29h1v1h-1zM25 29h1v1h-1zM26 29h1v1h-1zM30 29h1v1h-1zM31 29h1v1h-1zM32 29h1v1h-1zM34 29h1v1h-1zM2 30h1v1h-1zM4 30h1v1h-1zM5 30h1v1h-1zM6 30h1v1h-1zM8 30h1v1h-1zM10 30h1v1h-1zM11 30h1v1h-1zM13 30h1v1h-1zM16 30h1v1h-1zM19 30h1v1h-1zM20 30h1v1h-1zM21 30h1v1h-1zM22 30h1v1h-1zM24 30h1v1h-1zM25 30h1v1h-1zM26 30h1v1h-1zM27 30h1v1h-1zM28 30h1v1h-1zM29 30h1v1h-1zM30 30h1v1h-1zM33 30h1v1h-1zM34 30h1v1h-1zM2 31h1v1h-1zM4 31h1v1h-1zM5 31h1v1h-1zM6 31h1v1h-1zM8 31h1v1h-1zM10 31h1v1h-1zM12 31h1v1h-1zM13 31h1v1h-1zM15 31h1v1h-1zM16 31h1v1h-1zM21 31h1v1h-1zM22 31h1v1h-1zM23 31h1v1h-1zM24 31h1v1h-1zM25 31h1v1h-1zM26 31h1v1h-1zM27 31h1v1h-1zM29 31h1v1h-1zM31 31h1v1h-1zM33 31h1v1h-1zM34 31h1v1h-1zM2 32h1v1h-1zM4 32h1v1h-1zM5 32h1v1h-1zM6 32h1v1h-1zM8 32h1v1h-1zM12 32h1v1h-1zM14 32h1v1h-1zM18 32h1v1h-1zM21 32h1v1h-1zM22 32h1v1h-1zM26 32h1v1h-1zM29 32h1v1h-1zM30 32h1v1h-1zM32 32h1v1h-1zM33 32h1v1h-1zM34 32h1v1h-1zM2 33h1v1h-1zM8 33h1v1h-1zM11 33h1v1h-1zM12 33h1v1h-1zM13 33h1v1h-1zM14 33h1v1h-1zM15 33h1v1h-1zM16 33h1v1h-1zM17 33h1v1h-1zM18 33h1v1h-1zM21 33h1v1h-1zM24 33h1v1h-1zM27 33h1v1h-1zM29 33h1v1h-1zM30 33h1v1h-1zM31 33h1v1h-1zM32 33h1v1h-1zM33 33h1v1h-1zM34 33h1v1h-1zM2 34h1v1h-1zM3 34h1v1h-1zM4 34h1v1h-1zM5 34h1v1h-1zM6 34h1v1h-1zM7 34h1v1h-1zM8 34h1v1h-1zM10 34h1v1h-1zM11 34h1v1h-1zM18 34h1v1h-1zM19 34h1v1h-1zM25 34h1v1h-1zM26 34h1v1h-1zM29 34h1v1h-1zM30 34h1v1h-1z";
+
+let guideModalEl = null;
+function openGuide(){
+  const t = T();
+  closeGuide();
+  const ov = document.createElement("div");
+  ov.className = "modal-ov";
+  ov.innerHTML = `
+    <div class="modal" role="dialog" aria-modal="true">
+      <div class="modal-head">
+        <span>${t.guideTitle}</span>
+        <button class="icon-btn" id="gdClose" aria-label="Close">✕</button>
+      </div>
+      <div class="guide-body">
+        <div class="qr-wrap">
+          <svg viewBox="0 0 ${QR_N} ${QR_N}" shape-rendering="crispEdges" class="qr">
+            <rect width="${QR_N}" height="${QR_N}" fill="#fff"/>
+            <path d="${QR_PATH}" fill="#0f1620"/>
+          </svg>
+          <div class="qr-cap">${t.guideScan}</div>
+        </div>
+        ${t.guideSections.map(s=>`
+          <div class="guide-sec">
+            <div class="guide-h">${s.h}</div>
+            <div class="guide-p">${s.p}</div>
+          </div>`).join("")}
+        <div class="guide-links">
+          <a href="${APP_URL}" target="_blank" rel="noopener" class="guide-link">🔗 ${t.guideAppLink}</a>
+        </div>
+        <div class="guide-foot">${t.guideFoot}</div>
+      </div>
+    </div>`;
+  document.body.appendChild(ov);
+  guideModalEl = ov;
+  ov.addEventListener("click", e=>{ if(e.target===ov) closeGuide(); });
+  ov.querySelector("#gdClose").addEventListener("click", closeGuide);
+}
+function closeGuide(){ if(guideModalEl){ guideModalEl.remove(); guideModalEl=null; } }
+
+/* ---------- model selection ---------- */
+function renderModelChips(){
+  const wrap=$("#modelsChips"); if(!wrap) return;
+  wrap.innerHTML = MODELS().map(m=>
+    `<span class="mchip" style="border-color:var(${m.cssVar});color:var(${m.cssVar})">${modelLabel(m.key)}</span>`
+  ).join("");
+  const lbl=$("#t_modelsLabel"); if(lbl) lbl.textContent=T().modelsLabel;
+}
+
+let modelModalEl = null;
+function openModelPicker(){
+  const t=T();
+  closeModelPicker();
+  // working copy of the selection the user edits
+  let working = (state.selection||DEFAULT_SELECTION).slice();
+  const ov=document.createElement("div");
+  ov.className="modal-ov";
+  ov.innerHTML=`
+    <div class="modal" role="dialog" aria-modal="true">
+      <div class="modal-head">
+        <span>${t.pickTitle}</span>
+        <button class="icon-btn" id="mpClose" aria-label="Close">✕</button>
+      </div>
+      <div class="modal-hint">${t.pickHint}</div>
+      <div class="mp-list" id="mpList"></div>
+      <div class="mp-note" id="mpNote"></div>
+      <div class="modal-actions">
+        <button class="btn btn-ghost" id="mpCancel" type="button">${t.cancel}</button>
+        <button class="btn share-btn" id="mpSave" type="button" style="margin-top:0;background:var(--rain)">${t.save}</button>
+      </div>
+    </div>`;
+  document.body.appendChild(ov);
+  modelModalEl=ov;
+
+  function paint(){
+    const list=ov.querySelector("#mpList");
+    list.innerHTML = MODEL_POOL.map(m=>{
+      const on = working.includes(m.key);
+      const idx = working.indexOf(m.key);
+      const order = on? `<span class="mp-order">${idx+1}</span>` : "";
+      return `<button class="mp-item ${on?'on':''}" data-k="${m.key}" type="button">
+          <span class="mp-check">${on?'✓':''}</span>
+          <span class="mp-name">${modelLabel(m.key)}</span>
+          ${order}
+        </button>`;
+    }).join("");
+    const note=ov.querySelector("#mpNote");
+    const saveBtn=ov.querySelector("#mpSave");
+    if(working.length<MIN_ACTIVE){
+      note.textContent = t.pickAtLeast(MIN_ACTIVE) + " (" + working.length + "/" + MAX_ACTIVE + ")";
+      note.classList.add("warn");
+      saveBtn.disabled=true; saveBtn.style.opacity="0.5";
+    } else {
+      note.textContent = t.pickReadyN(working.length);
+      note.classList.remove("warn");
+      saveBtn.disabled=false; saveBtn.style.opacity="1";
+    }
+    list.querySelectorAll(".mp-item").forEach(b=>{
+      b.addEventListener("click",()=>{
+        const k=b.dataset.k;
+        const i=working.indexOf(k);
+        if(i>=0){ working.splice(i,1); }              // deselect
+        else if(working.length<MAX_ACTIVE){ working.push(k); }  // select if room
+        else { showToast(t.pickFull(MAX_ACTIVE)); return; }     // already full
+        paint();
+      });
+    });
+  }
+  paint();
+
+  ov.addEventListener("click",e=>{ if(e.target===ov) closeModelPicker(); });
+  ov.querySelector("#mpClose").addEventListener("click",closeModelPicker);
+  ov.querySelector("#mpCancel").addEventListener("click",closeModelPicker);
+  ov.querySelector("#mpSave").addEventListener("click",()=>{
+    if(working.length<MIN_ACTIVE) return;
+    const changed = working.join(",") !== (state.selection||[]).join(",");
+    state.selection = working.slice();
+    save();
+    closeModelPicker();
+    renderModelChips();
+    renderVerdict(); renderCharts(); renderTable();
+    if(changed && activeLoc) doSync(true);   // pull data for any newly-added model
+  });
+}
+function closeModelPicker(){ if(modelModalEl){ modelModalEl.remove(); modelModalEl=null; } }
+
+/* ---------- charts (lightweight inline SVG, no library) ---------- */
+function renderCharts(){
+  const mount=$("#chartsMount"); if(!mount) return;
+  const t=T();
+  if(!activeLoc){ mount.innerHTML=""; return; }
+  const sc=scoreLocation(activeLoc, range);
+  if(!sc.mae){ mount.innerHTML=""; return; }
+  const models=MODELS();
+  const cv=(m)=>getComputedStyle(document.documentElement).getPropertyValue(m.cssVar).trim()||"#5dd0c0";
+
+  // ---- Chart 1: MAE ranking bars (lower = better) ----
+  const maeVals = models.map(m=>({m, v:sc.mae[m.key]})).filter(x=>x.v!=null);
+  let barsChart="";
+  if(maeVals.length){
+    const maxV = Math.max(...maeVals.map(x=>x.v), 0.1);
+    const sorted = maeVals.slice().sort((a,b)=>a.v-b.v); // best first
+    const rowH=26, padL=64, padR=40, w=320, h=sorted.length*rowH+10;
+    let rows="";
+    sorted.forEach((x,i)=>{
+      const bw=(w-padL-padR)*(x.v/maxV);
+      const y=i*rowH+8;
+      rows+=`<text x="${padL-6}" y="${y+11}" text-anchor="end" font-size="11" fill="var(--ink)" font-weight="600">${modelLabel(x.m.key)}</text>
+        <rect x="${padL}" y="${y+2}" width="${Math.max(bw,2)}" height="13" rx="3" fill="${cv(x.m)}"/>
+        <text x="${padL+Math.max(bw,2)+5}" y="${y+11}" font-size="10.5" fill="var(--ink2)">${x.v}</text>`;
+    });
+    barsChart=`<div class="chart-block">
+      <div class="chart-h">${t.chartMae}</div>
+      <svg viewBox="0 0 ${w} ${h}" class="chartsvg">${rows}</svg>
+    </div>`;
+  }
+
+  // ---- Chart 2: forecast-vs-actual scatter, small multiples ----
+  // collect paired (forecast, actual) points per model from rows
+  const pts={}; models.forEach(m=>pts[m.key]=[]);
+  let gmax=1;
+  for(const r of sc.rows){
+    if(r.actual==null) continue;
+    for(const m of models){
+      const v=r.vals[m.key];
+      if(v==null) continue;
+      pts[m.key].push([v, r.actual]);
+      gmax=Math.max(gmax, v, r.actual);
+    }
+  }
+  gmax=Math.ceil(gmax/5)*5||5;
+  const cells = models.filter(m=>pts[m.key].length).map(m=>{
+    const s=110, pad=18;
+    const sx=v=>pad+(s-2*pad)*(v/gmax);
+    const sy=v=>s-pad-(s-2*pad)*(v/gmax); // invert y
+    const dots=pts[m.key].map(([f,a])=>`<circle cx="${sx(f).toFixed(1)}" cy="${sy(a).toFixed(1)}" r="2.6" fill="${cv(m)}" opacity="0.85"/>`).join("");
+    return `<div class="scatter-cell">
+      <div class="scatter-name" style="color:${cv(m)}">${modelLabel(m.key)}</div>
+      <svg viewBox="0 0 ${s} ${s}" class="scattersvg">
+        <line x1="${pad}" y1="${s-pad}" x2="${s-pad}" y2="${pad}" stroke="var(--line)" stroke-width="1" stroke-dasharray="3 3"/>
+        <line x1="${pad}" y1="${s-pad}" x2="${s-pad}" y2="${s-pad}" stroke="var(--line)" stroke-width="1"/>
+        <line x1="${pad}" y1="${s-pad}" x2="${pad}" y2="${pad}" stroke="var(--line)" stroke-width="1"/>
+        ${dots}
+      </svg>
+    </div>`;
+  }).join("");
+  const scatterChart = cells? `<div class="chart-block">
+      <div class="chart-h">${t.chartScatter}</div>
+      <div class="chart-sub">${t.chartScatterSub}</div>
+      <div class="scatter-grid">${cells}</div>
+    </div>` : "";
+
+  // ---- Chart 3: error-over-time grouped bars ----
+  const dayRows = sc.rows.filter(r=>r.actual!=null && models.some(m=>r.errs[m.key]!=null));
+  let timeChart="";
+  if(dayRows.length){
+    const maxAbs = Math.max(1, ...dayRows.flatMap(r=>models.map(m=>r.errs[m.key]!=null?Math.abs(r.errs[m.key]):0)));
+    const colW = Math.max(34, Math.min(60, Math.floor(560/dayRows.length)));
+    const w = dayRows.length*colW+50, h=150, mid=h/2, padB=22;
+    const barAreaH=(h-padB)/2-6;
+    const bw = Math.max(2, (colW-8)/models.length);
+    let groups="";
+    dayRows.forEach((r,di)=>{
+      const gx=40+di*colW;
+      models.forEach((m,mi)=>{
+        const e=r.errs[m.key];
+        if(e==null) return;
+        const bh=barAreaH*(Math.abs(e)/maxAbs);
+        const x=gx+mi*bw;
+        const y=e>=0? mid-bh : mid;
+        groups+=`<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${(bw-1).toFixed(1)}" height="${Math.max(bh,1).toFixed(1)}" fill="${cv(m)}" opacity="0.9"/>`;
+      });
+      groups+=`<text x="${gx+(colW-8)/2}" y="${h-7}" text-anchor="middle" font-size="9" fill="var(--ink2)">${shortDate(r.day)}</text>`;
+    });
+    timeChart=`<div class="chart-block">
+      <div class="chart-h">${t.chartTime}</div>
+      <div class="chart-sub">${t.chartTimeSub}</div>
+      <div class="chart-scroll-x"><svg viewBox="0 0 ${w} ${h}" class="timesvg" style="min-width:${w}px">
+        <line x1="36" y1="${mid}" x2="${w-6}" y2="${mid}" stroke="var(--line)" stroke-width="1"/>
+        <text x="32" y="${mid-3}" text-anchor="end" font-size="8" fill="var(--ink2)">+</text>
+        <text x="32" y="${mid+9}" text-anchor="end" font-size="8" fill="var(--ink2)">−</text>
+        ${groups}
+      </svg></div>
+    </div>`;
+  }
+
+  // confidence reminder so charts on thin data aren't over-read
+  const confNote = sc.cmpN<8 ? `<div class="chart-warn">${t.chartThin}</div>` : "";
+
+  mount.innerHTML = `<div class="card charts-card">
+    <div class="charts-title">${t.chartsTitle}</div>
+    ${confNote}
+    ${barsChart}${scatterChart}${timeChart}
+  </div>`;
+}
+function renderTable(){
+  const mount=$("#tableMount"), t=T();
+  if(!activeLoc){ mount.innerHTML=""; return; }
+  const sc=scoreLocation(activeLoc, range);
+  if(!sc.rows.length){ mount.innerHTML=""; return; }
+
+  // header: Date | <each model fc> | Actual | <each model err>
+  const models = MODELS();
+  let head = `<th>${t.colDate}</th>`;
+  for(const m of models) head += `<th style="color:var(${m.cssVar})">${m.short}</th>`;
+  head += `<th>${t.colAct}</th>`;
+  for(const m of models) head += `<th style="color:var(${m.cssVar})">${m.short}±</th>`;
+
+  let body="";
+  for(const r of sc.rows.slice().reverse()){
+    let fcCells="", errCells="";
+    for(const m of models){
+      const v = r.vals[m.key];
+      const hit = r.hits[m.key];
+      const dot = hit==null? "" : `<span class="dot ${hit?'hit':'miss'}"></span>`;
+      fcCells += `<td style="color:var(${m.cssVar})">${v==null?"—":v}${dot}</td>`;
+      const e = r.errs[m.key];
+      errCells += `<td style="color:var(${m.cssVar})">${e==null?"—":(e>0?"+":"")+e}</td>`;
+    }
+    body += `<tr>
+      <td>${shortDate(r.day)}</td>
+      ${fcCells}
+      <td class="${r.actual==null?'pending':'act'}">${r.actual==null?t.pending:r.actual}</td>
+      ${errCells}
+    </tr>`;
+  }
+
+  // footer: MAE row
+  let maeCells="";
+  for(const m of models){
+    const v = sc.mae? sc.mae[m.key] : null;
+    maeCells += `<td style="color:var(${m.cssVar})">${v==null?"—":v}</td>`;
+  }
+  const foot = sc.mae?`<tfoot><tr>
+      <td class="label">${t.mae}</td>
+      ${maeCells}
+      <td></td>
+      <td class="label" colspan="${models.length}" style="text-align:right">${t.maeUnit}</td>
+    </tr></tfoot>`:"";
+
+  let modelLegend = "";
+  for(const m of models) modelLegend += `<span><span class="sw" style="background:var(${m.cssVar})"></span>${modelLabel(m.key)}</span>`;
+  const hitLegend = `<span><span class="dot hit"></span>${t.legendHit}</span><span><span class="dot miss"></span>${t.legendMiss}</span>`;
+
+  mount.innerHTML=`
+  <div class="card">
+    <div class="tbl-scroll"><table>
+      <thead><tr>${head}</tr></thead>
+      <tbody>${body}</tbody>${foot}
+    </table></div>
+    <div class="legend">
+      <div class="legend-row">${modelLegend}</div>
+      <div class="legend-row">${hitLegend}</div>
+    </div>
+  </div>`;
+}
+function renderAll(){ applyStaticText(); renderModelChips(); renderLocList(); renderVerdict(); renderCharts(); renderTable(); }
+
+/* ---------- actions ---------- */
+function esc(s){ return String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
+function uid(){ return "L"+Date.now().toString(36)+Math.random().toString(36).slice(2,6); }
+
+let editingId = null;  // null = add mode; otherwise editing this location
+
+/* toast with optional inline undo action */
+let toastTimer=null;
+function showToast(msg, undoFn){
+  const el=$("#toast");
+  el.innerHTML = esc(msg) + (undoFn? ` <u id="toastUndo">${T().undo}</u>` : "");
+  el.classList.add("show");
+  if(undoFn){ $("#toastUndo").onclick=()=>{ undoFn(); hideToast(); }; }
+  clearTimeout(toastTimer);
+  toastTimer=setTimeout(hideToast, undoFn?5000:2200);
+}
+function hideToast(){ $("#toast").classList.remove("show"); }
+
+/* the form's Save button handles both Add (editingId null) and Update */
+function saveLoc(){
+  const name=$("#inName").value.trim(), lat=parseFloat($("#inLat").value), lon=parseFloat($("#inLon").value);
+  if(!name||isNaN(lat)||isNaN(lon)){ setSyncStatus("needName"); return; }
+  if(editingId){
+    const loc=state.locations.find(l=>l.id===editingId);
+    if(loc){
+      const shifted = distM(+loc.lat, +loc.lon, lat, lon);  // metres moved
+      const farMove = shifted > MOVE_KEEP_M;                // beyond 1km = different point
+      loc.name=name; loc.lat=lat; loc.lon=lon;
+      // Within 1km the points share the same weather grid cell, so the existing
+      // forecast/actual records stay valid and are kept. A larger move makes the
+      // old history belong to a different place, so we reset it.
+      if(farMove) state.records[loc.id] = {};
+      save();
+      closeForm(); renderAll();
+      // Re-sync after any coordinate change (refreshes data; keeps records if near).
+      if(shifted>0){
+        activeLoc=loc.id;
+        if(!farMove) showToast(T().keptNear(Math.round(shifted)));
+        doSync();
+      }
+    }
+  } else {
+    const id=uid();
+    state.locations.push({id,name,lat,lon}); save();
+    activeLoc=id; closeForm(); renderAll(); doSync();
+  }
+}
+/* form panel open/close (the + header button toggles add-mode) */
+function openForm(){
+  $("#formPanel").style.display="block";
+  $("#btnOpenAdd").classList.add("on");
+  $("#btnOpenAdd").textContent="✕";
+}
+function closeForm(){
+  $("#formPanel").style.display="none";
+  $("#btnOpenAdd").classList.remove("on");
+  $("#btnOpenAdd").textContent="＋";
+  if(editingId) endEdit();      // leaving the panel also exits edit mode cleanly
+  $("#inName").value=$("#inLat").value=$("#inLon").value="";
+  setSyncStatus(null);
+}
+function toggleForm(){
+  if($("#formPanel").style.display==="none"){ openForm(); $("#inName").focus(); }
+  else closeForm();
+}
+function startEdit(id){
+  const loc=state.locations.find(l=>l.id===id); if(!loc) return;
+  editingId=id;
+  $("#inName").value=loc.name; $("#inLat").value=loc.lat; $("#inLon").value=loc.lon;
+  openForm();
+  const t=T();
+  $("#formTitle").textContent=t.update;
+  $("#btnAdd").textContent=t.update;
+  $("#editingTag").style.display="block"; $("#editingTag").textContent=t.editing(loc.name);
+  $("#btnCancelEdit").style.display="block"; $("#btnCancelEdit").textContent=t.cancel;
+  $("#formPanel").scrollIntoView({behavior:"smooth",block:"nearest"});
+}
+function endEdit(){
+  editingId=null;
+  $("#inName").value=$("#inLat").value=$("#inLon").value="";
+  const t=T();
+  $("#formTitle").textContent=t.addloc2.replace(/^\+\s*/,"");
+  $("#btnAdd").textContent=t.save;
+  $("#editingTag").style.display="none";
+  $("#btnCancelEdit").style.display="none";
+}
+
+/* soft delete: flag deleted, keep records, offer undo. Never hard-wipes here. */
+function softDelLoc(id){
+  const loc=state.locations.find(l=>l.id===id); if(!loc) return;
+  loc.deleted=true; save();
+  if(activeLoc===id) activeLoc=activeLocs()[0]?.id||null;
+  renderAll();
+  showToast(`${T().softDeleted} · ${loc.name}`, ()=>restoreLoc(id, true));
+}
+function restoreLoc(id, silent){
+  const loc=state.locations.find(l=>l.id===id); if(!loc) return;
+  delete loc.deleted; save();
+  if(!activeLoc) activeLoc=id;
+  renderAll();
+  if(!silent) showToast(T().restored);
+}
+/* purge: permanent, irreversible — only affects already-soft-deleted locations */
+function purgeBin(){
+  if(!confirm(T().confirmPurge)) return;
+  for(const loc of deletedLocs()) delete state.records[loc.id];
+  state.locations = activeLocs();
+  save(); renderAll();
+  showToast(T().purged);
+}
+
+/* remembers the last sync outcome so the status line can be re-rendered in the
+   current language when the user toggles ZH/EN (otherwise it stays frozen). */
+let lastSyncState = null;  // null | "syncing" | {synced:n} | "syncErr" | "needName" | "gpsErr" | "gpsOk"
+function renderSyncStatus(){
+  const st=$("#syncStatus"); if(!st) return;
+  const s=lastSyncState, t=T();
+  if(s==null){ st.textContent=""; return; }
+  if(s==="syncing") st.textContent=t.syncing;
+  else if(s==="syncErr") st.textContent=t.syncErr;
+  else if(s==="needName") st.textContent=t.needName;
+  else if(s==="gpsErr") st.textContent=t.gpsErr;
+  else if(s==="gpsOk") st.textContent=t.gpsOk;
+  else if(s && s.synced!=null) st.textContent=t.synced(s.synced);
+  else st.textContent="";
+}
+function setSyncStatus(s){ lastSyncState=s; renderSyncStatus(); }
+
+async function doSync(force){
+  if(!activeLoc) return;
+  const loc=state.locations.find(l=>l.id===activeLoc);
+  if(!loc || loc.deleted) return;
+  setSyncStatus("syncing");
+  try{
+    await syncLocation(loc, range, null, force);
+    const sc=scoreLocation(activeLoc, range);
+    setSyncStatus({synced:sc.cmpN});
+    renderVerdict(); renderCharts(); renderTable();
+  }catch(e){ setSyncStatus("syncErr"); }
+}
+
+/* Bulk-refresh every farm in one region. Each syncLocation already pools its per-model
+   requests at concurrency 2, so we run farms sequentially to keep total API load gentle
+   (a region can hold 18 farms × up to 6 models). Progress shows in the group header;
+   a toast reports the result. If the active farm was refreshed, its scorecard updates. */
+let _refreshingRegion=false;
+async function refreshRegion(region){
+  if(_refreshingRegion) return;
+  const t=T();
+  const farms = activeLocs().filter(l=>(l.region||t.ungrouped)===region);
+  if(!farms.length) return;
+  _refreshingRegion=true;
+  // find the header button for this region to show progress
+  let btn=null;
+  for(const b of document.querySelectorAll(".lg-refresh")){
+    const nm=b.parentElement && b.parentElement.querySelector(".lg-name");
+    if(nm && nm.textContent===region){ btn=b; break; }
+  }
+  if(btn){ btn.classList.add("spinning"); }
+  let done=0, failed=0;
+  const setProg=()=>{ if(btn) btn.textContent=`${done}/${farms.length}`; };
+  setProg();
+  for(const loc of farms){
+    try{ await syncLocation(loc, range, null, false); }
+    catch(e){ failed++; }
+    done++; setProg();
+  }
+  _refreshingRegion=false;
+  // if the active farm was in this region, refresh its scorecard
+  if(farms.some(l=>l.id===activeLoc)){
+    const sc=scoreLocation(activeLoc, range);
+    setSyncStatus({synced:sc.cmpN});
+    renderVerdict(); renderCharts(); renderTable();
+  }
+  renderLocList();
+  toast(failed ? t.regionDonePartial(done-failed, farms.length) : t.regionDone(farms.length));
+}
+
+/* ---------- Cross-farm analysis: where does a model reliably beat IFS? ----------
+   For each farm we already have per-model MAE and hit-rate vs actuals. IFS 9km is
+   the production baseline (the model the daily broadcast uses), so the useful
+   question is: at which orchards does another model beat IFS — and is that beat
+   trustworthy, or just a thin-sample fluke?
+
+   A farm is a CONFIDENT winner only if a non-IFS model beats IFS on BOTH metrics by
+   a meaningful margin over a reliable sample. Everything weaker is listed as
+   "worth watching", never mixed in with the confident calls. This restraint is
+   deliberate: switching a region's forecast on a lucky fortnight could make the
+   broadcast worse, so the bar to declare "beats IFS" is intentionally high. */
+const BEATS_MIN_DAYS = 20;     // reliable-sample floor (matches the "reliable" pill)
+const BEATS_MAE_MARGIN = 0.5;  // mm/day — must beat IFS by at least this on amount
+const BEATS_HIT_MARGIN = 5;    // percentage points — and by at least this on dry/wet
+const WATCH_MIN_DAYS = 8;      // below this we don't even tentatively flag it
+
+function analyzeFarmVsIFS(locId){
+  const sc = scoreLocation(locId, range);
+  if(!sc.mae || sc.mae.ifs==null) return { status:"nodata", cmpN:sc.cmpN };
+  const challengers = MODELS().filter(m=>m.key!=="ifs");
+  let best=null;
+  for(const m of challengers){
+    const dMae = (sc.mae[m.key]!=null) ? (sc.mae.ifs - sc.mae[m.key]) : null;   // + = better than IFS
+    const dHit = (sc.hit && sc.hit[m.key]!=null && sc.hit.ifs!=null) ? (sc.hit[m.key] - sc.hit.ifs) : null;
+    if(dMae==null || dHit==null) continue;
+    // a "beat" requires winning on BOTH metrics (not just one)
+    const beatsBoth = dMae>0 && dHit>0;
+    if(!beatsBoth) continue;
+    // score the strength of the beat by how far past the margins it goes
+    const strength = Math.min(dMae/BEATS_MAE_MARGIN, dHit/BEATS_HIT_MARGIN);
+    if(!best || strength>best.strength) best={ key:m.key, dMae, dHit, strength };
+  }
+  if(!best) return { status:"ifs_best", cmpN:sc.cmpN };  // IFS not beaten on both metrics
+  // attach the plain-language event-skill numbers for the winning model vs IFS
+  const k=best.key;
+  best.pod = sc.pod ? sc.pod[k] : null;
+  best.podIfs = sc.pod ? sc.pod.ifs : null;
+  best.far = sc.far ? sc.far[k] : null;
+  best.farIfs = sc.far ? sc.far.ifs : null;
+  best.csi = sc.csi ? sc.csi[k] : null;
+  best.csiIfs = sc.csi ? sc.csi.ifs : null;
+  best.rainDays = sc.rainDays ? sc.rainDays[k] : null;
+  const confident = sc.cmpN>=BEATS_MIN_DAYS &&
+                    best.dMae>=BEATS_MAE_MARGIN && best.dHit>=BEATS_HIT_MARGIN;
+  if(confident) return { status:"confident", cmpN:sc.cmpN, ...best };
+  if(sc.cmpN>=WATCH_MIN_DAYS) return { status:"watch", cmpN:sc.cmpN, ...best };
+  return { status:"thin", cmpN:sc.cmpN, ...best };  // a lead exists but sample too small
+}
+
+function analyzeAllFarms(){
+  const farms = activeLocs();
+  const confident=[], watch=[], ifsBest=[], thin=[], nodata=[];
+  let maxDays=0, withData=0;
+  for(const loc of farms){
+    const a = analyzeFarmVsIFS(loc.id);
+    const entry = { loc, ...a };
+    const n = a.cmpN||0;
+    if(n>maxDays) maxDays=n;
+    if(n>0) withData++;
+    if(a.status==="confident") confident.push(entry);
+    else if(a.status==="watch") watch.push(entry);
+    else if(a.status==="ifs_best") ifsBest.push(entry);
+    else if(a.status==="thin") thin.push(entry);
+    else nodata.push(entry);
+  }
+  // strongest beats first
+  confident.sort((a,b)=>b.strength-a.strength);
+  watch.sort((a,b)=>b.strength-a.strength);
+  return { confident, watch, ifsBest, thin, nodata, total:farms.length, maxDays, withData };
+}
+
+/* lightweight toast */
+let _toastT=null;
+function toast(msg){
+  let el=document.getElementById("toast");
+  if(!el){ el=document.createElement("div"); el.id="toast"; el.className="toast"; document.body.appendChild(el); }
+  el.textContent=msg; el.classList.add("on");
+  clearTimeout(_toastT); _toastT=setTimeout(()=>el.classList.remove("on"),2600);
+}
+
+/* colour var for a model key regardless of active selection (for the results card) */
+function cssVarFor(key){
+  const active = MODELS().find(x=>x.key===key);
+  if(active) return active.cssVar;
+  const m = MODEL_POOL.find(x=>x.key===key);
+  return m ? m.cssVar : "--ink";
+}
+
+/* ---------- Results card: the cross-farm summary ---------- */
+function openResults(){
+  const t = T();
+  closeResults();
+  const A = analyzeAllFarms();
+  const fmtBeat = (e)=>{
+    const name = `<b style="color:var(${cssVarFor(e.key)})">${modelLabel(e.key)}</b>`;
+    return t.resBeatLine(name, e.dMae.toFixed(1), e.dHit);
+  };
+  // plain-language event skill as clean stat blocks (echoing the main scorecard cards)
+  const skillBlocks = (e)=>{
+    const blk = (label, val, ifsVal, betterHigh)=>{
+      if(val==null) return "";
+      let cls="";
+      if(ifsVal!=null){ const better = betterHigh ? val>ifsVal : val<ifsVal; cls = better?"res-stat-good":""; }
+      const vs = ifsVal!=null ? `<span class="res-stat-vs">IFS ${ifsVal}%</span>` : "";
+      return `<div class="res-stat ${cls}">
+        <div class="res-stat-l">${label}</div>
+        <div class="res-stat-v">${val}<span class="res-stat-u">%</span></div>
+        ${vs}</div>`;
+    };
+    const b1=blk(t.resPOD, e.pod, e.podIfs, true);
+    const b2=blk(t.resFAR, e.far, e.farIfs, false);
+    const b3=blk(t.resCSI, e.csi, e.csiIfs, true);
+    if(!b1&&!b2&&!b3) return "";
+    return `<div class="res-stats">${b1}${b2}${b3}</div>`;
+  };
+
+  const byModel = {};
+  for(const e of A.confident){ (byModel[e.key]=byModel[e.key]||[]).push(e); }
+
+  let confidentHTML;
+  if(!A.confident.length){
+    confidentHTML = `<div class="res-empty">${t.resNoneConfident}</div>`;
+  } else {
+    confidentHTML = Object.keys(byModel).map(key=>{
+      const list = byModel[key];
+      const col = `var(${cssVarFor(key)})`;
+      const rows = list.map(e=>`<div class="res-card" style="border-left-color:${col}">
+          <div class="res-card-top">
+            <div class="res-farm">${esc(e.loc.name)}<span class="res-region">${esc(e.loc.region||"")}</span></div>
+            <span class="res-days-badge">${e.cmpN} ${t.days}</span>
+          </div>
+          <div class="res-beat-amt">${t.resBeatLine('', e.dMae.toFixed(1), e.dHit).replace(/^[:：]\s*/,'')}</div>
+          ${skillBlocks(e)}
+        </div>`).join("");
+      return `<div class="res-model-group">
+        <div class="res-model-h" style="color:${col}">${modelLabel(key)} <span class="res-model-h-sub">${t.resBeatsAt(list.length)}</span></div>
+        ${rows}</div>`;
+    }).join("");
+  }
+
+  const watchHTML = A.watch.length ? A.watch.map(e=>`<div class="res-row res-row-dim">
+      <div class="res-farm">${esc(e.loc.name)}<span class="res-region">${esc(e.loc.region||"")}</span></div>
+      <div class="res-beat">${fmtBeat(e)}<span class="res-days">${e.cmpN} ${t.days}${e.cmpN<BEATS_MIN_DAYS?" · "+t.resNeedMore:""}</span></div>
+    </div>`).join("") : `<div class="res-empty">${t.resNoneWatch}</div>`;
+
+  const counts = `${A.confident.length} / ${A.total}`;
+
+  // ---- adaptive status banner: tell the tester honestly where the data stands ----
+  let statusClass, statusHTML;
+  if(A.confident.length>0){
+    statusClass = "res-status-good";
+    statusHTML = t.resStatusHasWinners(A.confident.length);
+  } else if(A.maxDays>=BEATS_MIN_DAYS){
+    // enough data on some farm, but IFS is holding its own — a real, honest finding
+    statusClass = "res-status-ok";
+    statusHTML = t.resStatusIfsHolds;
+  } else if(A.withData>0){
+    // data is coming in but nothing has matured yet
+    statusClass = "res-status-early";
+    statusHTML = t.resStatusBuilding(A.withData, A.total, A.maxDays, BEATS_MIN_DAYS);
+  } else {
+    // nothing fetched/scored yet at all
+    statusClass = "res-status-empty";
+    statusHTML = t.resStatusEmpty;
+  }
+  const bannerHTML = `<div class="res-status ${statusClass}">${statusHTML}</div>`;
+
+  const ov = document.createElement("div");
+  ov.className = "modal-ov"; ov.id = "resultsOv";
+  ov.innerHTML = `
+    <div class="modal" role="dialog" aria-modal="true">
+      <div class="modal-head">
+        <span>${t.resTitle}</span>
+        <button class="icon-btn" id="resClose" aria-label="Close">✕</button>
+      </div>
+      <div class="res-body">
+        <div class="res-intro">${t.resIntro}</div>
+        ${bannerHTML}
+        <div class="res-section-h res-h-win">✅ ${t.resConfidentH} <span class="res-count">${counts}</span></div>
+        <div class="res-section">${confidentHTML}</div>
+        <div class="res-section-h res-h-watch">👀 ${t.resWatchH}</div>
+        <div class="res-section">${watchHTML}</div>
+        <div class="res-decide">
+          <div class="res-decide-h">${t.resDecideH}</div>
+          <div class="res-q"><b>1. ${t.resQ1}</b><span class="res-q-sub">${t.resQ1sub}</span></div>
+          <div class="res-q"><b>2. ${t.resQ2}</b><span class="res-q-sub">${t.resQ2sub}</span></div>
+          <div class="res-q"><b>3. ${t.resQ3}</b><span class="res-q-sub">${t.resQ3sub}</span></div>
+          <div class="res-decide-rule">${t.resDecideRule}</div>
+        </div>
+        <div class="res-foot">
+          <div>${t.resIfsBest}: <b>${A.ifsBest.length}</b> · ${t.resThin}: <b>${A.thin.length}</b> · ${t.resNoData}: <b>${A.nodata.length}</b></div>
+          <div class="res-caveat">${t.resCaveat}</div>
+        </div>
+      </div>
+    </div>`;
+  document.body.appendChild(ov);
+  ov.addEventListener("click",(e)=>{ if(e.target===ov) closeResults(); });
+  document.getElementById("resClose").addEventListener("click", closeResults);
+}
+function closeResults(){ const o=document.getElementById("resultsOv"); if(o) o.remove(); }
+
+/* ---------- Drive mode: fetch every orchard, slowly ----------
+   Tap before leaving for the orchard; by the time you arrive all farms are gathered.
+   Paced one farm at a time with a gap between each, so it never trips Open-Meteo's
+   rate limiter. Skips farms already fetched today. Pausable (tap again to stop) and
+   resumable — if a phone call or signal drop interrupts it, it picks up where it left
+   off. Each farm's own fetch already retries on 429/503, so transient failures recover. */
+const DRIVE_GAP_MS = 2200;            // gentle pause between farms
+let driveRunning = false;
+let driveAbort = false;
+
+function isFarmDoneToday(loc){
+  const fc = (state.fetchedOn||{})[loc.id];
+  if(!fc) return false;
+  const today = todayYMD();
+  // "done" means every active model's forecast AND the ERA5 actuals were fetched today.
+  // Requiring __actual too means a farm that got forecasts but no actuals earlier isn't
+  // permanently skipped by drive mode — it'll be retried until actuals come through.
+  const modelsDone = MODELS().every(m => fc[m.key] === today);
+  return modelsDone && fc.__actual === today;
+}
+
+async function fetchAllSlowly(){
+  // tapping again while running = stop
+  if(driveRunning){ driveAbort = true; return; }
+  const btn = document.getElementById("btnFetchAll");
+  const all = activeLocs();
+  if(!all.length){ toast(T().driveNone); return; }
+
+  driveRunning = true; driveAbort = false;
+  if(btn) btn.classList.add("driving");
+
+  // keep the screen awake during the run if the browser allows it (best-effort)
+  let wake=null;
+  try{ if(navigator.wakeLock) wake=await navigator.wakeLock.request("screen"); }catch(_){}
+
+  let done = 0, failed = 0, skipped = 0;
+  const setBadge = ()=>{ if(btn) btn.setAttribute("data-prog", `${done+skipped}/${all.length}`); };
+  setBadge();
+  toast(T().driveStart(all.length));
+
+  for(const loc of all){
+    if(driveAbort) break;
+    if(isFarmDoneToday(loc)){ skipped++; setBadge(); continue; }
+    try{
+      await syncLocation(loc, range, null, false);
+      // honest count: only "done" if the farm actually has records now
+      const r = state.records[loc.id];
+      if(r && Object.keys(r).length>0) done++; else failed++;
+    }catch(e){ failed++; }
+    setBadge();
+    // refresh the active farm's scorecard live if it was just fetched
+    if(loc.id===activeLoc){
+      try{ const sc=scoreLocation(activeLoc,range); setSyncStatus({synced:sc.cmpN}); renderVerdict(); renderCharts(); renderTable(); }catch(_){}
+    }
+    if(driveAbort) break;
+    await sleep(DRIVE_GAP_MS);
+  }
+
+  driveRunning = false;
+  try{ if(wake) await wake.release(); }catch(_){}
+  if(btn){ btn.classList.remove("driving"); btn.removeAttribute("data-prog"); }
+  renderLocList();
+  const t=T();
+  if(driveAbort){ toast(t.driveStopped(done, all.length)); }
+  else if(failed){ toast(t.driveDonePartial(all.length-failed, all.length)); }
+  else{ toast(t.driveDone(all.length, skipped)); }
+}
+function useGps(){
+  if(!navigator.geolocation){ setSyncStatus("gpsErr"); return; }
+  navigator.geolocation.getCurrentPosition(p=>{
+    $("#inLat").value=p.coords.latitude.toFixed(4);
+    $("#inLon").value=p.coords.longitude.toFixed(4);
+    setSyncStatus("gpsOk");
+  },()=>{ setSyncStatus("gpsErr"); });
+}
+
+/* ---------- wire up ---------- */
+$("#langBtn").addEventListener("click",()=>{
+  LANG = LANG==="zh"?"en":"zh"; localStorage.setItem("rainscore_lang",LANG); renderAll();
+});
+$("#btnAdd").addEventListener("click",saveLoc);
+$("#btnOpenAdd").addEventListener("click",toggleForm);
+$("#btnHelp").addEventListener("click",openGuide);
+$("#btnResults").addEventListener("click",openResults);
+$("#btnFetchAll").addEventListener("click",fetchAllSlowly);
+$("#btnModels").addEventListener("click",openModelPicker);
+$("#btnCloseForm").addEventListener("click",closeForm);
+$("#btnCancelEdit").addEventListener("click",closeForm);
+$("#btnGps").addEventListener("click",useGps);
+$("#btnSync").addEventListener("click",()=>doSync(true));
+$("#btnExport").addEventListener("click",exportXLS);
+$("#locFilter").addEventListener("input",renderLocList);
+$("#rangeSeg").addEventListener("click",e=>{
+  const b=e.target.closest("button"); if(!b) return;
+  range=+b.dataset.r;
+  [...$("#rangeSeg").children].forEach(x=>x.classList.toggle("on",x===b));
+  renderVerdict(); renderCharts(); renderTable();
+});
+
+/* ---------- boot: render, then log-on-open auto-sync of active location ---------- */
+renderAll();
+if(activeLoc) doSync();   // log-on-open + gap-fill happens here every launch
+
+if("serviceWorker" in navigator){
+  navigator.serviceWorker.register("sw.js").catch(()=>{});
+}
+</script>
+</body>
+</html>
