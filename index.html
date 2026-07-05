@@ -901,11 +901,20 @@ function distM(lat1, lon1, lat2, lon2){
 }
 
 /* ---------- API: fetch with gentle retry (Open-Meteo 429/503 throttle aware) ---------- */
-async function fetchJSON(url, tries=4){
+async function fetchJSON(url, tries=4, timeoutMs=15000){
   let lastErr;
   for(let i=0;i<tries;i++){
+    // Abort a stalled request (server accepts but never responds, flaky signal) so a
+    // single hung fetch can't freeze the drive loop and block the stop button. Also
+    // abort instantly when the user taps stop during drive mode.
+    const ctl=new AbortController();
+    const timer=setTimeout(()=>ctl.abort(), timeoutMs);
+    const onStop=()=>ctl.abort();
+    if(typeof DRIVE_STOP_SIGNAL!=="undefined" && DRIVE_STOP_SIGNAL) DRIVE_STOP_SIGNAL.addEventListener("abort",onStop);
     try{
-      const r = await fetch(url);
+      const r = await fetch(url,{signal:ctl.signal});
+      clearTimeout(timer);
+      if(DRIVE_STOP_SIGNAL) DRIVE_STOP_SIGNAL.removeEventListener("abort",onStop);
       if(r.status===429 || r.status===503){
         // honour Retry-After if the server sends it, else exponential-ish backoff with jitter
         const ra = parseInt(r.headers.get("retry-after")||"",10);
@@ -915,7 +924,12 @@ async function fetchJSON(url, tries=4){
       }
       if(!r.ok) throw new Error("HTTP "+r.status);
       return await r.json();
-    }catch(e){ lastErr=e; await sleep(900+Math.random()*900); }
+    }catch(e){
+      clearTimeout(timer);
+      if(DRIVE_STOP_SIGNAL) DRIVE_STOP_SIGNAL.removeEventListener("abort",onStop);
+      if(driveAbort) throw e;                 // user stopped — bail out, don't keep retrying
+      lastErr=e; await sleep(900+Math.random()*900);
+    }
   }
   throw lastErr || new Error("fetch failed");
 }
@@ -2314,6 +2328,8 @@ function closeResults(){ const o=document.getElementById("resultsOv"); if(o) o.r
 const DRIVE_GAP_MS = 2200;            // gentle pause between farms
 let driveRunning = false;
 let driveAbort = false;
+let DRIVE_STOP_CTL = null;                 // AbortController for the active drive run
+let DRIVE_STOP_SIGNAL = null;              // its .signal, watched by fetchJSON
 
 function isFarmDoneToday(loc){
   const fc = (state.fetchedOn||{})[loc.id];
@@ -2327,13 +2343,14 @@ function isFarmDoneToday(loc){
 }
 
 async function fetchAllSlowly(){
-  // tapping again while running = stop
-  if(driveRunning){ driveAbort = true; return; }
+  // tapping again while running = stop (also aborts the in-flight fetch so it stops fast)
+  if(driveRunning){ driveAbort = true; try{ DRIVE_STOP_CTL && DRIVE_STOP_CTL.abort(); }catch(_){} return; }
   const btn = document.getElementById("btnFetchAll");
   const all = activeLocs();
   if(!all.length){ toast(T().driveNone); return; }
 
   driveRunning = true; driveAbort = false;
+  DRIVE_STOP_CTL=new AbortController(); DRIVE_STOP_SIGNAL=DRIVE_STOP_CTL.signal;   // stop signal for this run
   if(btn) btn.classList.add("driving");
   document.body.classList.add("drive-dark");   // battery-saving true-black theme while fetching
 
@@ -2390,6 +2407,7 @@ async function fetchAllSlowly(){
   }
 
   driveRunning = false;
+  DRIVE_STOP_CTL=null; DRIVE_STOP_SIGNAL=null;   // clear stop signal
   document.removeEventListener("visibilitychange", onVis);
   try{ if(wake) await wake.release(); }catch(_){}
   wake=null;
