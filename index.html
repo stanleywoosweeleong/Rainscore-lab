@@ -934,6 +934,16 @@ async function fetchJSON(url, tries=4, timeoutMs=15000){
   throw lastErr || new Error("fetch failed");
 }
 const sleep = ms => new Promise(r=>setTimeout(r,ms));
+// Like sleep, but resolves early if the drive stop signal fires — so the inter-fetch
+// gap never delays a stop. (Plain sleep() is kept for backoff waits that must run fully.)
+function driveSleep(ms){
+  return new Promise(resolve=>{
+    let done=false;
+    const finish=()=>{ if(done) return; done=true; clearTimeout(t); if(typeof DRIVE_STOP_SIGNAL!=="undefined" && DRIVE_STOP_SIGNAL) DRIVE_STOP_SIGNAL.removeEventListener("abort",finish); resolve(); };
+    const t=setTimeout(finish, ms);
+    if(typeof DRIVE_STOP_SIGNAL!=="undefined" && DRIVE_STOP_SIGNAL) DRIVE_STOP_SIGNAL.addEventListener("abort",finish);
+  });
+}
 
 /* Run async tasks with limited concurrency (pool), so we never fire all model
    requests at once — that is what trips Open-Meteo's 429 rate limit. */
@@ -2371,13 +2381,15 @@ async function fetchAllSlowly(){
   document.addEventListener("visibilitychange", onVis);
   await acquireWake();
 
-  let done = 0, failed = 0, skipped = 0;
+  let done = 0, failed = 0, skipped = 0, processed = 0;
   const doCount=document.getElementById("doCount");
   const doLabel=document.getElementById("doLabel");
   const doName=document.getElementById("doName");
   if(doLabel) doLabel.textContent=T().driveProg;
   const setBadge = (name)=>{
-    const txt=`${done+skipped}/${all.length}`;
+    // Base the count on processed (skip + success + FAILURE) so a failed location
+    // still advances the number — otherwise the count stalls on every failure.
+    const txt=`${processed}/${all.length}`;
     if(btn) btn.setAttribute("data-prog", txt);
     if(doCount) doCount.textContent=txt;
     if(doName && name!=null) doName.textContent=name;
@@ -2387,7 +2399,7 @@ async function fetchAllSlowly(){
 
   for(const loc of all){
     if(driveAbort) break;
-    if(isFarmDoneToday(loc)){ skipped++; setBadge(); continue; }
+    if(isFarmDoneToday(loc)){ skipped++; processed++; setBadge(); continue; }
     if(doName) doName.textContent=(loc.name||"");   // show which orchard is fetching now
     try{
       await syncLocation(loc, range, null, false);
@@ -2395,6 +2407,7 @@ async function fetchAllSlowly(){
       const r = state.records[loc.id];
       if(r && Object.keys(r).length>0) done++; else failed++;
     }catch(e){ failed++; }
+    processed++;                                     // advance on success AND failure
     setBadge();
     // if the wake lock was dropped while hidden and we're now visible again, restore it
     if(!wake) await acquireWake();
@@ -2403,7 +2416,8 @@ async function fetchAllSlowly(){
       try{ const sc=scoreLocation(activeLoc,range); setSyncStatus({synced:sc.cmpN}); renderVerdict(); renderCharts(); renderTable(); }catch(_){}
     }
     if(driveAbort) break;
-    await sleep(DRIVE_GAP_MS);
+    await driveSleep(DRIVE_GAP_MS);                  // interruptible: a stop-tap resolves it early
+    if(driveAbort) break;
   }
 
   driveRunning = false;
@@ -2417,11 +2431,11 @@ async function fetchAllSlowly(){
   // to vanish instantly). Aborts/failures exit right away as before.
   const t=T();
   let endMsg;
-  if(driveAbort){ endMsg=t.driveStopped(done, all.length); }
+  if(driveAbort){ endMsg=t.driveStopped(processed, all.length); }
   else if(failed){ endMsg=t.driveDonePartial(all.length-failed, all.length); }
   else{ endMsg=t.driveDone(all.length, skipped); }
   if(!driveAbort && !failed){
-    if(doCount) doCount.textContent=`${done+skipped}/${all.length}`;
+    if(doCount) doCount.textContent=`${processed}/${all.length}`;
     if(doLabel){ doLabel.textContent=t.driveDoneShort; doLabel.style.color="var(--win)"; }
     if(doName)  doName.textContent="";
     const doDot=document.querySelector("#driveOverlay .do-dot");
