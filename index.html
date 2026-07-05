@@ -53,12 +53,35 @@ header{display:flex;align-items:center;gap:6px;padding:14px var(--pad) 12px;
 /* drive mode: button gently pulses while running, with a progress badge */
 #btnFetchAll{position:relative}
 #btnFetchAll.driving{color:var(--rain)}
-#btnFetchAll.driving svg, #btnFetchAll.driving{animation:drivePulse 1.4s ease-in-out infinite}
+#btnFetchAll.driving svg{animation:drivePulse 1.4s ease-in-out infinite}
 @keyframes drivePulse{0%,100%{opacity:1}50%{opacity:.45}}
 #btnFetchAll.driving[data-prog]::after{content:attr(data-prog);position:absolute;
   top:-6px;left:50%;transform:translateX(-30%);background:var(--rain);color:#fff;font-size:9px;font-weight:700;
   line-height:1;padding:2px 5px;border-radius:999px;white-space:nowrap;animation:none;opacity:1;
   box-shadow:0 1px 3px rgba(0,0,0,.35)}
+
+/* Battery-saving drive mode: the app's normal theme is dark navy, which still lights
+   OLED pixels. While fetching we go TRUE BLACK (#000 = pixels off) and blank the
+   content below the header, showing only a big centred progress count. */
+body.drive-dark{background:#000}
+body.drive-dark header{background:#000 !important}
+body.drive-dark header *{color:#c7ccd1}
+body.drive-dark #btnFetchAll.driving{color:#c7ccd1}
+body.drive-dark #btnFetchAll.driving[data-prog]::after{display:none} /* big overlay shows progress */
+body.drive-dark .wrap{visibility:hidden}          /* blank the scrolling content */
+body.drive-dark header{z-index:70}                /* keep header (stop button) tappable above overlay */
+body.drive-dark *{transition:none !important}
+#driveOverlay{position:fixed;inset:0;z-index:60;display:none;background:#000;
+  flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:24px;
+  text-align:center;padding-top:calc(env(safe-area-inset-top) + 64px)}
+body.drive-dark #driveOverlay{display:flex}
+#driveOverlay .do-dot{width:9px;height:9px;border-radius:50%;background:var(--rain);
+  animation:drivePulse 1.4s ease-in-out infinite}
+#driveOverlay .do-count{font-size:64px;font-weight:800;letter-spacing:-1px;color:#e8eaed;
+  font-variant-numeric:tabular-nums;line-height:1}
+#driveOverlay .do-label{font-size:15px;font-weight:700;color:#7a828c;letter-spacing:.3px}
+#driveOverlay .do-name{font-size:13px;color:#5a616b;max-width:80%;white-space:nowrap;
+  overflow:hidden;text-overflow:ellipsis}
 .add-btn{background:var(--rain);border:none;color:#06121b;border-radius:999px;
   width:34px;height:34px;min-width:34px;font-size:21px;font-weight:700;line-height:1;cursor:pointer;flex-shrink:0;
   display:flex;align-items:center;justify-content:center;padding:0}
@@ -395,12 +418,20 @@ footer{text-align:center;padding:18px 10px 8px;font-size:11px;color:var(--ink2)}
     </span>
   </div>
   <div class="spacer"></div>
-  <button class="ghost-icon" id="btnFetchAll" title="Fetch all orchards (drive mode)">🚗</button>
-  <button class="ghost-icon" id="btnResults" title="Results: where a model beats IFS">🏆</button>
-  <button class="ghost-icon" id="btnHelp" title="Guide">ⓘ</button>
+  <button class="ghost-icon" id="btnFetchAll" title="Fetch all orchards (drive mode)" aria-label="Drive mode"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M5 11l1.5-4.2A2 2 0 0 1 8.4 5.5h7.2a2 2 0 0 1 1.9 1.3L19 11"/><path d="M3.5 11h17a1 1 0 0 1 1 1v4a1 1 0 0 1-1 1h-17a1 1 0 0 1-1-1v-4a1 1 0 0 1 1-1z"/><circle cx="7" cy="16.5" r="1.4"/><circle cx="17" cy="16.5" r="1.4"/></svg></button>
+  <button class="ghost-icon" id="btnResults" title="Results: where a model beats IFS" aria-label="Results"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M7 4h10v5a5 5 0 0 1-10 0V4z"/><path d="M7 6H4.5a2 2 0 0 0 0 4H7"/><path d="M17 6h2.5a2 2 0 0 1 0 4H17"/><path d="M12 14v3"/><path d="M9 20h6"/><path d="M10 17h4l-.4 3h-3.2L10 17z"/></svg></button>
+  <button class="ghost-icon" id="btnHelp" title="Guide" aria-label="Guide"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><circle cx="12" cy="7.8" r="0.6" fill="currentColor" stroke="none"/></svg></button>
   <button class="add-btn" id="btnOpenAdd" title="Add a location">＋</button>
   <button class="lang ghost-lang" id="langBtn">中</button>
 </header>
+
+<!-- drive-mode black overlay: big centred progress count (battery saving) -->
+<div id="driveOverlay" aria-live="polite">
+  <div class="do-dot"></div>
+  <div class="do-count" id="doCount">0/0</div>
+  <div class="do-label" id="doLabel"></div>
+  <div class="do-name" id="doName"></div>
+</div>
 
 <div class="wrap">
 
@@ -524,7 +555,7 @@ const I18N = {
     gps:"使用我的 GPS", save:"保存地点", data:"数据", sync:"更新记录", exportCsv:"导出 Excel 原始数据", dataSheet:"每日数据",
     foot:"预报：ECMWF IFS 9km · DWD ICON · JMA GSM · 实际：ERA5 再分析 · CC BY 4.0",
     langBtn:"中",
-    emptyLoc:"点右上角 ＋ 新增第一个果园地点", emptyLocBig:"📍", filterPlaceholder:"搜索果园名…", noMatch:"没有符合的果园", ungrouped:"其他", updateRegion:"更新此区所有果园", regionDone:(n)=>`已更新 ${n} 个果园`, regionDonePartial:(ok,n)=>`已更新 ${ok}/${n} 个（部分失败，可重试）`, driveTitle:"开车模式：慢慢抓取全部果园", driveNone:"还没有果园可抓取", driveStart:(n)=>`开车模式：开始慢慢抓取 ${n} 个果园，可关屏但请别关 App`, driveDone:(n,sk)=>sk?`全部 ${n} 个已就绪（其中 ${sk} 个今天已抓取）`:`全部 ${n} 个果园已抓取完成 ✓`, driveDonePartial:(ok,n)=>`已抓取 ${ok}/${n} 个（部分失败，再按一次补抓）`, driveStopped:(d,n)=>`已停止（完成 ${d}/${n}，再按继续）`, resTitle:"哪个模式赢 IFS？", resIntro:"对比每个果园：有没有别的模式在「雨量」和「晴雨判断」上都赢过你目前广播用的 ECMWF IFS 9km。下面「可信」一栏要求样本够多（≥20 天）且赢得够明显，才会列入——可作为该地区换模式的参考。", resConfidentH:"可信：某模式稳定赢 IFS", resWatchH:"值得观察（样本或幅度还不够）", resBeatsAt:(n)=>`在 ${n} 个果园赢 IFS`, resBeatLine:(name,mae,hit)=>`${name}：雨量准 ${mae}mm，晴雨高 ${hit}%`, resNeedMore:"需更多天", resNoneConfident:"目前还没有任何模式稳定赢过 IFS——继续累积数据。", resNoneWatch:"暂无观察名单。", resIfsBest:"IFS 仍最佳", resThin:"样本太少", resNoData:"暂无数据", resCaveat:"⚠ 仅供参考。热带骤雨变化大，换模式前请用更长时间、并结合地面雨量筒验证。", resTitleBtn:"结果：哪个模式赢 IFS", resStatusEmpty:"<b>还没有可比对的数据。</b>先用 🚗 开车模式抓取各果园，或打开某个果园按「更新记录」。实际雨量（ERA5）约延迟 5 天，所以最近几天要过几天才有分数。", resStatusBuilding:(w,tot,mx,need)=>`<b>数据正在累积中，这很正常。</b>目前 ${tot} 个果园里有 ${w} 个开始有分数，最多的一个累积了 <b>${mx}/${need} 天</b>。<br>还没有任何结论——样本太少时排名会乱跳，<b>千万别凭几天数据就换模式</b>。<br>👉 每天用（或每天开车模式抓一次），约 <b>3–4 周</b>后果园陆续满 20 天，真正稳定赢 IFS 的模式就会出现在上面。`, resStatusIfsHolds:"<b>已有足够数据的果园里，目前 IFS 仍然最稳。</b>这本身就是有用的结论——代表你现在广播用的模式没问题。继续累积，若某地区有模式后来居上，会自动列到上面。", resStatusHasWinners:(n)=>`<b>已找到 ${n} 个果园有模式稳定赢过 IFS。</b>见下方「可信」名单。换模式前，仍建议再观察一段时间并结合地面雨量筒。`, resPOD:"接住雨", resFAR:"空报", resCSI:"综合", resDecideH:"该不该换模式？看三件事", resQ1:"它接得住该下的雨吗？", resQ1sub:"「接住雨」＝该下雨的日子里，它预报对了几成（越高越好）。漏掉大雨最伤果园。（POD 命中率）", resQ2:"它会不会常常空报？", resQ2sub:"「空报」＝它说会下、结果没下的比例（越低越好）。常空报会让你白忙。（FAR 误报率）", resQ3:"综合表现比 IFS 好吗？", resQ3sub:"「综合」＝把接住雨和空报合起来的总分（越高越好）。这一个数最能代表整体（CSI 综合指数）。", resDecideRule:"👉 只有当某模式「接住雨」更高、「空报」更低、「综合」也更高，而且累积了 20 天以上，才值得考虑在这个地区换用它。任何一项不如 IFS，就先别换。",
+    emptyLoc:"点右上角 ＋ 新增第一个果园地点", emptyLocBig:"📍", filterPlaceholder:"搜索果园名…", noMatch:"没有符合的果园", ungrouped:"其他", updateRegion:"更新此区所有果园", regionDone:(n)=>`已更新 ${n} 个果园`, regionDonePartial:(ok,n)=>`已更新 ${ok}/${n} 个（部分失败，可重试）`, driveTitle:"开车模式：慢慢抓取全部果园", driveProg:"抓取进度", driveNone:"还没有果园可抓取", driveStart:(n)=>`开车模式：开始慢慢抓取 ${n} 个果园，可关屏但请别关 App`, driveDone:(n,sk)=>sk?`全部 ${n} 个已就绪（其中 ${sk} 个今天已抓取）`:`全部 ${n} 个果园已抓取完成 ✓`, driveDonePartial:(ok,n)=>`已抓取 ${ok}/${n} 个（部分失败，再按一次补抓）`, driveStopped:(d,n)=>`已停止（完成 ${d}/${n}，再按继续）`, resTitle:"哪个模式赢 IFS？", resIntro:"对比每个果园：有没有别的模式在「雨量」和「晴雨判断」上都赢过你目前广播用的 ECMWF IFS 9km。下面「可信」一栏要求样本够多（≥20 天）且赢得够明显，才会列入——可作为该地区换模式的参考。", resConfidentH:"可信：某模式稳定赢 IFS", resWatchH:"值得观察（样本或幅度还不够）", resBeatsAt:(n)=>`在 ${n} 个果园赢 IFS`, resBeatLine:(name,mae,hit)=>`${name}：雨量准 ${mae}mm，晴雨高 ${hit}%`, resNeedMore:"需更多天", resNoneConfident:"目前还没有任何模式稳定赢过 IFS——继续累积数据。", resNoneWatch:"暂无观察名单。", resIfsBest:"IFS 仍最佳", resThin:"样本太少", resNoData:"暂无数据", resCaveat:"⚠ 仅供参考。热带骤雨变化大，换模式前请用更长时间、并结合地面雨量筒验证。", resTitleBtn:"结果：哪个模式赢 IFS", resStatusEmpty:"<b>还没有可比对的数据。</b>先用 🚗 开车模式抓取各果园，或打开某个果园按「更新记录」。实际雨量（ERA5）约延迟 5 天，所以最近几天要过几天才有分数。", resStatusBuilding:(w,tot,mx,need)=>`<b>数据正在累积中，这很正常。</b>目前 ${tot} 个果园里有 ${w} 个开始有分数，最多的一个累积了 <b>${mx}/${need} 天</b>。<br>还没有任何结论——样本太少时排名会乱跳，<b>千万别凭几天数据就换模式</b>。<br>👉 每天用（或每天开车模式抓一次），约 <b>3–4 周</b>后果园陆续满 20 天，真正稳定赢 IFS 的模式就会出现在上面。`, resStatusIfsHolds:"<b>已有足够数据的果园里，目前 IFS 仍然最稳。</b>这本身就是有用的结论——代表你现在广播用的模式没问题。继续累积，若某地区有模式后来居上，会自动列到上面。", resStatusHasWinners:(n)=>`<b>已找到 ${n} 个果园有模式稳定赢过 IFS。</b>见下方「可信」名单。换模式前，仍建议再观察一段时间并结合地面雨量筒。`, resPOD:"接住雨", resFAR:"空报", resCSI:"综合", resDecideH:"该不该换模式？看三件事", resQ1:"它接得住该下的雨吗？", resQ1sub:"「接住雨」＝该下雨的日子里，它预报对了几成（越高越好）。漏掉大雨最伤果园。（POD 命中率）", resQ2:"它会不会常常空报？", resQ2sub:"「空报」＝它说会下、结果没下的比例（越低越好）。常空报会让你白忙。（FAR 误报率）", resQ3:"综合表现比 IFS 好吗？", resQ3sub:"「综合」＝把接住雨和空报合起来的总分（越高越好）。这一个数最能代表整体（CSI 综合指数）。", resDecideRule:"👉 只有当某模式「接住雨」更高、「空报」更低、「综合」也更高，而且累积了 20 天以上，才值得考虑在这个地区换用它。任何一项不如 IFS，就先别换。",
     pickLoc:"选择上方地点查看记分", noData:"尚无记录，点「更新记录」",
     how:"每次打开会记录各模型对「今天」的雨量预报，并用最近 7 天的存档自动补回遗漏的日子。实际雨量用 ERA5 再分析回填（约延迟 5 天）。",
     mae:"平均误差", maeUnit:"毫米/天", hit:"晴雨命中", hitUnit:"准确率",
@@ -584,7 +615,7 @@ const I18N = {
       { h:"「样本太少 / 参考 / 可靠」", p:"顶部的小标签。实际雨量（ERA5）约延迟 5 天，所以刚开始能比对的天数很少，排名会跳动、不可靠。少于 8 天＝样本太少；8–19 天＝参考；20 天以上＝可靠。等到「可靠」再下结论。" },
       { h:"怎么用", p:"果园已经<b>预先载入</b>（见下），<b>直接选一个来看就行</b>——不必自己添加。想加自己的果园也可以：点右上角 ＋（输入坐标或用 GPS）。点「模式」选要比的模式（1–6 个）。每天打开会自动记录当天预报，并用最近 7 天存档补回遗漏的日子。记录一天天累积，约一个月后最完整。想一次抓很多果园，用下面的「三种更新方式」。" },
       { h:"果园已预先载入", p:"App 已为你预载约 110 个果园地点（WeatherNext 大家庭的所有果园），<b>无需自己逐个添加</b>。地点按地区分组，点地区标题展开或收起。果园多时上方会出现搜索框，可按名字快速查找。你选中的果园所在地区，标题上会直接显示该果园名字，方便辨认。" },
-      { h:"三种更新方式", p:"<b>① 单个果园：</b>选中某果园后，点「更新记录」只刷新这一个（强制重新抓取当天数据）。<br><b>② 整个地区：</b>展开地区后，点标题右边的 <b>↻</b> 按钮，会依次更新该地区<b>所有</b>果园，按钮上显示进度（如 3/15）。<br><b>③ 全部果园（🚗 开车模式）：</b>点顶部 <b>🚗</b>，App 会慢慢地一个一个抓取全部 114 个果园，按钮上显示进度（如 47/114）。特意放慢速度以免触发限流；出门前按一下，开车到果园时差不多就抓完了。中途来电可再按一下暂停，回头再按继续（会接着抓、不重复）。已抓过的当天会自动跳过。抓取时请让 App 保持在前台（屏幕会自动保持常亮）；若切到别的 App 或锁屏，系统会暂停网页，回来后可再按继续。<br><br>②③ 都会沿用当天缓存、对服务器友好；① 是强制刷新单个果园。" },
+      { h:"三种更新方式", p:"<b>① 单个果园：</b>选中某果园后，点「更新记录」只刷新这一个（强制重新抓取当天数据）。<br><b>② 整个地区：</b>展开地区后，点标题右边的 <b>↻</b> 按钮，会依次更新该地区<b>所有</b>果园，按钮上显示进度（如 3/15）。<br><b>③ 全部果园（🚗 开车模式）：</b>点顶部 <b>🚗</b>，App 会慢慢地一个一个抓取全部 114 个果园，按钮上显示进度（如 47/114）。抓取时屏幕会转成<b>全黑省电画面</b>，中间显示大大的进度和正在抓取的果园名——黑色能让 OLED 屏更省电，适合睡前跑。特意放慢速度以免触发限流；出门前按一下，开车到果园时差不多就抓完了。中途来电可再按一下暂停，回头再按继续（会接着抓、不重复）。已抓过的当天会自动跳过。抓取时请让 App 保持在前台（屏幕会自动保持常亮）；若切到别的 App 或锁屏，系统会暂停网页，回来后可再按继续。<br><br>②③ 都会沿用当天缓存、对服务器友好；① 是强制刷新单个果园。" },
       { h:"🏆 结果卡：哪个模式赢 IFS", p:"点顶部 <b>🏆</b> 打开跨果园总结。它扫描全部果园，找出<b>哪些果园有别的模式稳定赢过 IFS 9km</b>（你目前广播用的）。<br><b>「可信」</b>一栏：只列出累积 ≥20 天、且在「雨量」和「晴雨判断」上都明显赢 IFS 的果园——可作为该地区换模式的依据。<br><b>「值得观察」</b>一栏：已领先但样本或幅度还不够，先看着。<br>每张卡片会用三个白话分数跟 IFS 对比：<b>接住雨（POD）</b>、<b>空报（FAR）</b>、<b>综合（CSI）</b>，并在底部教你「该不该换模式，看三件事」。<br><b>重要：</b>刚开始几乎全部果园都在「暂无数据 / 样本太少」，这是正常的——实际雨量 ERA5 延迟约 5 天，要每天用（或每天开车模式抓一次），约 3–4 周后才会陆续满 20 天、出现真正的结论。<b>千万别凭几天数据就换模式。</b>" },
       { h:"方法说明（技术）", p:"预报：Open-Meteo「Previous Runs」API 的 precipitation_previous_day1，即各模式在前一天对该日的 24 小时预报（前置时间固定为 24h）。逐时降水按 Asia/Kuching 本地日累加为日总量。实际：ERA5 再分析（archive-api），约延迟 5 天。注意 ERA5 本身是同化模式的网格估计，非实地雨量计，对热带对流性降雨有已知局限。「有雨」阈值＝1.0 mm/日。平均误差＝MAE；偏向＝平均带符号误差；漏雨／空报＝2×2 列联表的漏报与误报。样本少时差异未必有统计显著性——本 App 只给启发式可靠度标签，不做显著性检验。要自己分析可用「导出 Excel」。" },
     ],
@@ -595,7 +626,7 @@ const I18N = {
     gps:"Use my GPS", save:"Save location", data:"Data", sync:"Update records", exportCsv:"Export Excel (raw data)", dataSheet:"Daily data",
     foot:"Forecasts: ECMWF IFS 9km · DWD ICON · JMA GSM · Actual: ERA5 reanalysis · CC BY 4.0",
     langBtn:"EN",
-    emptyLoc:"Tap ＋ (top right) to add your first orchard", emptyLocBig:"📍", filterPlaceholder:"Search orchards…", noMatch:"No matching orchards", ungrouped:"Other", updateRegion:"Update all orchards in this region", regionDone:(n)=>`Updated ${n} orchards`, regionDonePartial:(ok,n)=>`Updated ${ok}/${n} (some failed, try again)`, driveTitle:"Drive mode: fetch all orchards slowly", driveNone:"No orchards to fetch yet", driveStart:(n)=>`Drive mode: gathering ${n} orchards slowly. Screen can sleep, but keep the app open.`, driveDone:(n,sk)=>sk?`All ${n} ready (${sk} were already done today)`:`All ${n} orchards fetched ✓`, driveDonePartial:(ok,n)=>`Fetched ${ok}/${n} (some failed — tap again to finish)`, driveStopped:(d,n)=>`Stopped (${d}/${n} done — tap to resume)`, resTitle:"Which model beats IFS?", resIntro:"For each orchard: does another model beat your broadcast baseline ECMWF IFS 9km on BOTH rainfall amount and dry/wet calls? The \"Confident\" list below only includes farms with enough days (≥20) and a clear margin — a fair basis for considering a model switch in that region.", resConfidentH:"Confident: a model reliably beats IFS", resWatchH:"Worth watching (sample or margin still thin)", resBeatsAt:(n)=>`beats IFS at ${n} ${n===1?"orchard":"orchards"}`, resBeatLine:(name,mae,hit)=>`${name}: ${mae}mm better amount, +${hit}% dry/wet`, resNeedMore:"need more days", resNoneConfident:"No model reliably beats IFS yet — keep gathering data.", resNoneWatch:"Nothing on the watch list yet.", resIfsBest:"IFS still best", resThin:"Too few days", resNoData:"No data yet", resCaveat:"⚠ Indicative only. Tropical downpours are erratic — confirm over a longer period and against your ground rain gauge before switching models.", resTitleBtn:"Results: where a model beats IFS", resStatusEmpty:"<b>No comparison data yet.</b> Use 🚗 drive mode to gather orchards, or open an orchard and tap \"Update records\". Actual rain (ERA5) lags ~5 days, so the most recent days only get scored a few days later.", resStatusBuilding:(w,tot,mx,need)=>`<b>Data is still building — this is normal.</b> ${w} of ${tot} orchards have started scoring, and the furthest along has <b>${mx}/${need} days</b>.<br>No conclusions yet — rankings swing wildly with few days, so <b>never switch models on a handful of days</b>.<br>👉 Use it daily (or run drive-mode once a day) and in about <b>3–4 weeks</b> orchards cross 20 days, at which point any model that genuinely beats IFS appears above.`, resStatusIfsHolds:"<b>Among orchards with enough data, IFS is still the steadiest so far.</b> That's a useful finding in itself — it means your current broadcast model is holding up. Keep gathering; if a model overtakes it in some region, it'll appear above automatically.", resStatusHasWinners:(n)=>`<b>Found ${n} orchard(s) where a model reliably beats IFS.</b> See the \"Confident\" list below. Even so, watch a while longer and check against your ground rain gauge before switching.`, resPOD:"Catches rain", resFAR:"False alarms", resCSI:"Overall", resDecideH:"Should you switch? Look at three things", resQ1:"Does it catch the rain that matters?", resQ1sub:"\"Catches rain\" = of the days it actually rained, how many it predicted (higher is better). Missing a big downpour hurts most. (POD)", resQ2:"Does it cry wolf too often?", resQ2sub:"\"False alarms\" = of the days it predicted rain, how many stayed dry (lower is better). Frequent false alarms waste your planning. (FAR)", resQ3:"Is it better overall than IFS?", resQ3sub:"\"Overall\" = catches-rain and false-alarms combined into one score (higher is better). This single number best sums it up. (CSI)", resDecideRule:"👉 Only worth switching a region to a model when it catches more rain, has fewer false alarms, AND scores higher overall than IFS — over 20+ days. If it loses on any one of these, keep IFS for now.",
+    emptyLoc:"Tap ＋ (top right) to add your first orchard", emptyLocBig:"📍", filterPlaceholder:"Search orchards…", noMatch:"No matching orchards", ungrouped:"Other", updateRegion:"Update all orchards in this region", regionDone:(n)=>`Updated ${n} orchards`, regionDonePartial:(ok,n)=>`Updated ${ok}/${n} (some failed, try again)`, driveTitle:"Drive mode: fetch all orchards slowly", driveProg:"Fetching", driveNone:"No orchards to fetch yet", driveStart:(n)=>`Drive mode: gathering ${n} orchards slowly. Screen can sleep, but keep the app open.`, driveDone:(n,sk)=>sk?`All ${n} ready (${sk} were already done today)`:`All ${n} orchards fetched ✓`, driveDonePartial:(ok,n)=>`Fetched ${ok}/${n} (some failed — tap again to finish)`, driveStopped:(d,n)=>`Stopped (${d}/${n} done — tap to resume)`, resTitle:"Which model beats IFS?", resIntro:"For each orchard: does another model beat your broadcast baseline ECMWF IFS 9km on BOTH rainfall amount and dry/wet calls? The \"Confident\" list below only includes farms with enough days (≥20) and a clear margin — a fair basis for considering a model switch in that region.", resConfidentH:"Confident: a model reliably beats IFS", resWatchH:"Worth watching (sample or margin still thin)", resBeatsAt:(n)=>`beats IFS at ${n} ${n===1?"orchard":"orchards"}`, resBeatLine:(name,mae,hit)=>`${name}: ${mae}mm better amount, +${hit}% dry/wet`, resNeedMore:"need more days", resNoneConfident:"No model reliably beats IFS yet — keep gathering data.", resNoneWatch:"Nothing on the watch list yet.", resIfsBest:"IFS still best", resThin:"Too few days", resNoData:"No data yet", resCaveat:"⚠ Indicative only. Tropical downpours are erratic — confirm over a longer period and against your ground rain gauge before switching models.", resTitleBtn:"Results: where a model beats IFS", resStatusEmpty:"<b>No comparison data yet.</b> Use 🚗 drive mode to gather orchards, or open an orchard and tap \"Update records\". Actual rain (ERA5) lags ~5 days, so the most recent days only get scored a few days later.", resStatusBuilding:(w,tot,mx,need)=>`<b>Data is still building — this is normal.</b> ${w} of ${tot} orchards have started scoring, and the furthest along has <b>${mx}/${need} days</b>.<br>No conclusions yet — rankings swing wildly with few days, so <b>never switch models on a handful of days</b>.<br>👉 Use it daily (or run drive-mode once a day) and in about <b>3–4 weeks</b> orchards cross 20 days, at which point any model that genuinely beats IFS appears above.`, resStatusIfsHolds:"<b>Among orchards with enough data, IFS is still the steadiest so far.</b> That's a useful finding in itself — it means your current broadcast model is holding up. Keep gathering; if a model overtakes it in some region, it'll appear above automatically.", resStatusHasWinners:(n)=>`<b>Found ${n} orchard(s) where a model reliably beats IFS.</b> See the \"Confident\" list below. Even so, watch a while longer and check against your ground rain gauge before switching.`, resPOD:"Catches rain", resFAR:"False alarms", resCSI:"Overall", resDecideH:"Should you switch? Look at three things", resQ1:"Does it catch the rain that matters?", resQ1sub:"\"Catches rain\" = of the days it actually rained, how many it predicted (higher is better). Missing a big downpour hurts most. (POD)", resQ2:"Does it cry wolf too often?", resQ2sub:"\"False alarms\" = of the days it predicted rain, how many stayed dry (lower is better). Frequent false alarms waste your planning. (FAR)", resQ3:"Is it better overall than IFS?", resQ3sub:"\"Overall\" = catches-rain and false-alarms combined into one score (higher is better). This single number best sums it up. (CSI)", resDecideRule:"👉 Only worth switching a region to a model when it catches more rain, has fewer false alarms, AND scores higher overall than IFS — over 20+ days. If it loses on any one of these, keep IFS for now.",
     pickLoc:"Pick a location above to see its scorecard", noData:"No records yet — tap Update records",
     how:"Each time you open the app it logs what every model forecast for today, and back-fills any missed days from the last 7 days of archive. Actual rain is filled from ERA5 reanalysis (about 5 days behind).",
     mae:"Avg miss", maeUnit:"mm/day", hit:"Dry/wet calls", hitUnit:"correct",
@@ -655,7 +686,7 @@ const I18N = {
       { h:"\"Too few days / indicative / reliable\"", p:"The little tag at the top. Actual rain (ERA5) lags ~5 days, so early on there are very few scored days and the ranking jumps around. Under 8 days = too few; 8–19 = indicative; 20+ = reliable. Wait for \"reliable\" before drawing conclusions." },
       { h:"How to use it", p:"Orchards are already <b>pre-loaded</b> (see below), so <b>just pick one to view</b> — you don't have to add anything. You can still add your own: tap ＋ (top right) and enter coordinates or use GPS. Tap \"Models\" to choose which to compare (1–6). Each time you open the app it logs that day's forecast and back-fills the last 7 days. Records build up daily and are fullest after about a month. To fetch many orchards at once, use the \"Three ways to update\" below." },
       { h:"Your orchards are pre-loaded", p:"The app comes with ~110 orchards already loaded (every farm in the WeatherNext family), so <b>you don't have to add them yourself</b>. They're grouped by region — tap a region heading to expand or collapse it. When the list is long a search box appears on top to jump to a farm by name. The region holding your selected farm shows that farm's name right in its heading, so you can always see which one is active." },
-      { h:"Three ways to update", p:"<b>① One orchard:</b> with a farm selected, tap \"Update records\" to refresh just that one (a forced re-fetch of today's data).<br><b>② A whole region:</b> expand a region and tap the <b>↻</b> button on its heading to update <b>every</b> orchard in it, with progress shown on the button (e.g. 3/15).<br><b>③ All orchards (🚗 drive mode):</b> tap <b>🚗</b> at the top and the app slowly gathers all 114 orchards one by one, with progress on the button (e.g. 47/114). It's paced deliberately slowly to avoid rate limits — tap it before you leave and by the time you reach the orchard it's usually done. If a call interrupts, tap to pause and tap again to resume (it picks up where it left off, no double-fetching). Orchards already done today are skipped. Keep the app in the foreground while it runs (the screen stays awake automatically); if you switch to another app or lock the phone, the system pauses the page — just return and tap to resume.<br><br>② and ③ reuse today's cache and are gentle on the server; ① is a forced refresh of a single orchard." },
+      { h:"Three ways to update", p:"<b>① One orchard:</b> with a farm selected, tap \"Update records\" to refresh just that one (a forced re-fetch of today's data).<br><b>② A whole region:</b> expand a region and tap the <b>↻</b> button on its heading to update <b>every</b> orchard in it, with progress shown on the button (e.g. 3/15).<br><b>③ All orchards (🚗 drive mode):</b> tap <b>🚗</b> at the top and the app slowly gathers all 114 orchards one by one, with progress on the button (e.g. 47/114). While it runs the screen turns <b>fully black to save battery</b>, showing a big centred progress count and the orchard being fetched (black keeps OLED pixels off) — ideal to run overnight. It's paced deliberately slowly to avoid rate limits — tap it before you leave and by the time you reach the orchard it's usually done. If a call interrupts, tap to pause and tap again to resume (it picks up where it left off, no double-fetching). Orchards already done today are skipped. Keep the app in the foreground while it runs (the screen stays awake automatically); if you switch to another app or lock the phone, the system pauses the page — just return and tap to resume.<br><br>② and ③ reuse today's cache and are gentle on the server; ① is a forced refresh of a single orchard." },
       { h:"🏆 Results card: which model beats IFS", p:"Tap <b>🏆</b> at the top to open the cross-orchard summary. It scans every orchard and finds <b>where another model reliably beats IFS 9km</b> (the one your broadcast uses).<br><b>\"Confident\"</b> lists only orchards with ≥20 days that beat IFS clearly on both rainfall amount and dry/wet calls — a fair basis for a regional model switch.<br><b>\"Worth watching\"</b> lists ones that lead but whose sample or margin is still thin.<br>Each card compares three plain-language scores against IFS: <b>Catches rain (POD)</b>, <b>False alarms (FAR)</b>, and <b>Overall (CSI)</b>, with a \"should you switch? look at three things\" helper at the bottom.<br><b>Important:</b> early on almost every orchard sits in \"no data / too few days\" — that's normal. Actual rain (ERA5) lags ~5 days, so you must use it daily (or run drive-mode once a day); after about 3–4 weeks orchards cross 20 days and real conclusions appear. <b>Never switch models on a handful of days.</b>" },
       { h:"Methodology (technical)", p:"Forecasts: Open-Meteo \"Previous Runs\" API, variable precipitation_previous_day1 — each model's 24-hour-ahead forecast for that day (lead time held constant at 24h). Hourly precip is summed to local-day totals on Asia/Kuching. Actuals: ERA5 reanalysis (archive-api), ~5-day lag. Note ERA5 is itself a model-assimilated gridded estimate, not a physical rain gauge, with known limitations for convective tropical rainfall. Wet-day threshold = 1.0 mm/day. Avg miss = MAE; bias = mean signed error; missed/false = the miss and false-alarm cells of the 2×2 contingency table. With small samples, differences may not be statistically significant — this app gives only a heuristic reliability tag, not a significance test. Use \"Export Excel\" to run your own analysis." },
     ],
@@ -2304,6 +2335,7 @@ async function fetchAllSlowly(){
 
   driveRunning = true; driveAbort = false;
   if(btn) btn.classList.add("driving");
+  document.body.classList.add("drive-dark");   // battery-saving true-black theme while fetching
 
   // Keep the screen awake for the whole run. iOS releases the wake lock whenever the
   // page is hidden (app switch, notification, screen dim), and does NOT auto-reacquire —
@@ -2323,13 +2355,23 @@ async function fetchAllSlowly(){
   await acquireWake();
 
   let done = 0, failed = 0, skipped = 0;
-  const setBadge = ()=>{ if(btn) btn.setAttribute("data-prog", `${done+skipped}/${all.length}`); };
-  setBadge();
+  const doCount=document.getElementById("doCount");
+  const doLabel=document.getElementById("doLabel");
+  const doName=document.getElementById("doName");
+  if(doLabel) doLabel.textContent=T().driveProg;
+  const setBadge = (name)=>{
+    const txt=`${done+skipped}/${all.length}`;
+    if(btn) btn.setAttribute("data-prog", txt);
+    if(doCount) doCount.textContent=txt;
+    if(doName && name!=null) doName.textContent=name;
+  };
+  setBadge("");
   toast(T().driveStart(all.length));
 
   for(const loc of all){
     if(driveAbort) break;
     if(isFarmDoneToday(loc)){ skipped++; setBadge(); continue; }
+    if(doName) doName.textContent=(loc.name||"");   // show which orchard is fetching now
     try{
       await syncLocation(loc, range, null, false);
       // honest count: only "done" if the farm actually has records now
@@ -2349,6 +2391,7 @@ async function fetchAllSlowly(){
 
   driveRunning = false;
   document.removeEventListener("visibilitychange", onVis);
+  document.body.classList.remove("drive-dark");   // restore normal theme when done
   try{ if(wake) await wake.release(); }catch(_){}
   wake=null;
   if(btn){ btn.classList.remove("driving"); btn.removeAttribute("data-prog"); }
