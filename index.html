@@ -94,6 +94,17 @@ body.drive-dark #driveOverlay{display:flex}
   padding:16px;margin:12px 0;box-shadow:0 1px 0 var(--shadow)}
 .card h2{margin:0 0 4px;font-size:14px;letter-spacing:.4px;color:var(--ink2);
   text-transform:uppercase;font-weight:600}
+/* master collapse for the whole location manager */
+.loc-master-hd{display:flex;align-items:center;justify-content:space-between;gap:10px;
+  width:100%;background:none;border:none;padding:0;cursor:pointer;color:inherit;text-align:left}
+.loc-master-hd h2{margin:0}
+.lm-left{display:flex;align-items:baseline;gap:9px;min-width:0}
+.lm-active{font-size:13px;font-weight:600;color:var(--ink);white-space:nowrap;
+  overflow:hidden;text-overflow:ellipsis;letter-spacing:0;text-transform:none}
+.lm-chev{flex:none;color:var(--ink2);transition:transform .2s}
+.loc-card.collapsed .lm-chev{transform:rotate(-90deg)}
+.loc-card.collapsed #locMasterBody{display:none}
+.loc-card.collapsed{padding-bottom:16px}
 label.fld{display:block;font-size:13px;color:var(--ink2);margin:10px 0 4px}
 input,select{width:100%;background:var(--panel2);border:1px solid var(--line);
   color:var(--ink);border-radius:9px;padding:11px 12px;font-size:15px;font-family:inherit}
@@ -438,8 +449,12 @@ footer{text-align:center;padding:18px 10px 8px;font-size:11px;color:var(--ink2)}
   <div id="toast" class="toast"></div>
 
   <!-- LOCATIONS -->
-  <div class="card">
-    <h2 id="t_locations">Locations</h2>
+  <div class="card loc-card" id="locCard">
+    <button type="button" class="loc-master-hd" id="locMasterHd" aria-expanded="true" aria-controls="locMasterBody">
+      <span class="lm-left"><h2 id="t_locations">Locations</h2><span class="lm-active" id="locMasterActive"></span></span>
+      <svg class="lm-chev" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+    </button>
+    <div id="locMasterBody">
     <input type="text" id="locFilter" class="loc-filter" placeholder="" autocomplete="off" style="display:none">
     <div class="loc-list" id="locList"></div>
 
@@ -469,6 +484,7 @@ footer{text-align:center;padding:18px 10px 8px;font-size:11px;color:var(--ink2)}
 
     <!-- recycle bin -->
     <div id="binMount"></div>
+    </div>
   </div>
 
   <!-- DATA STATUS -->
@@ -867,6 +883,40 @@ if(state.seeded && state.locations && (state.seedVersion||0) < SEED_VERSION){
   save();
 }
 let activeLoc = (state.locations.find(l=>!l.deleted)||{}).id || null;
+
+/* ---- master collapse of the whole location manager ---- */
+const LOC_COLLAPSE_KEY = "rainscore_loc_collapsed";
+function locCollapsed(){ return localStorage.getItem(LOC_COLLAPSE_KEY)==="1"; }
+function setLocCollapsed(v){
+  localStorage.setItem(LOC_COLLAPSE_KEY, v?"1":"0");
+  const card=document.getElementById("locCard");
+  const hd=document.getElementById("locMasterHd");
+  if(card) card.classList.toggle("collapsed", v);
+  if(hd) hd.setAttribute("aria-expanded", v?"false":"true");
+  updateLocMasterActive();
+}
+function updateLocMasterActive(){
+  const el=document.getElementById("locMasterActive");
+  if(!el) return;
+  // Only show the active farm's name in the header while collapsed (so the user
+  // always knows what's selected without expanding).
+  if(!locCollapsed()){ el.textContent=""; return; }
+  const loc=state.locations.find(l=>l.id===activeLoc && !l.deleted);
+  el.textContent = loc ? ("· "+loc.name) : "";
+}
+function initLocMaster(){
+  const hd=document.getElementById("locMasterHd");
+  if(hd && !hd.dataset.wired){
+    hd.dataset.wired="1";
+    hd.addEventListener("click", ()=> setLocCollapsed(!locCollapsed()) );
+  }
+  // Default to collapsed once seeds/locations exist, so the user lands on the
+  // scorecard. First-run (no locations yet) stays open so the empty state shows.
+  if(localStorage.getItem(LOC_COLLAPSE_KEY)===null){
+    localStorage.setItem(LOC_COLLAPSE_KEY, activeLocs().length ? "1" : "0");
+  }
+  setLocCollapsed(locCollapsed());
+}
 let range = 30;
 
 function load(){
@@ -1210,6 +1260,7 @@ function deletedLocs(){ return state.locations.filter(l=>l.deleted); }
 let expandedGroups = null;  // Set of expanded region names; null = not yet initialised
 function renderLocList(){
   const t=T(), box=$("#locList");
+  updateLocMasterActive();   // keep the collapsed header's active-farm name current
   const all = activeLocs();
   // show the filter box once the list gets long
   const filterEl=$("#locFilter");
@@ -1252,6 +1303,7 @@ function renderLocList(){
       if(e.target.dataset.del!=null){ softDelLoc(loc.id); return; }
       activeLoc=loc.id;
       if(loc.region && expandedGroups) expandedGroups.add(loc.region); // keep selection visible
+      setLocCollapsed(true);   // fold the manager away so the user lands on the scorecard
       renderAll();
       // if this farm has no records yet (e.g. bulk fetch skipped or missed it), fetch now
       const r = state.records[loc.id];
@@ -1999,6 +2051,7 @@ function saveLoc(){
 }
 /* form panel open/close (the + header button toggles add-mode) */
 function openForm(){
+  if(locCollapsed()) setLocCollapsed(false);   // form lives inside the collapsible body — reveal it
   $("#formPanel").style.display="block";
   $("#btnOpenAdd").classList.add("on");
   $("#btnOpenAdd").textContent="✕";
@@ -2484,6 +2537,7 @@ $("#rangeSeg").addEventListener("click",e=>{
 
 /* ---------- boot: render, then log-on-open auto-sync of active location ---------- */
 renderAll();
+initLocMaster();          // set up the master location-manager collapse (collapsed by default once seeds exist)
 if(activeLoc) doSync();   // log-on-open + gap-fill happens here every launch
 
 if("serviceWorker" in navigator){
