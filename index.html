@@ -526,7 +526,7 @@ footer{text-align:center;padding:18px 10px 8px;font-size:11px;color:var(--ink2)}
 
 const TZ = "Asia/Kuching";
 const STORE_KEY = "rainscore_lab_v1";
-const CACHE_TAG = "rainscore-lab-20260927-45";
+const CACHE_TAG = "rainscore-lab-20260927-46";
 const DRY_THRESHOLD = 1.0;   // mm — <1mm counts as a "dry day" (field-adjustable)
 const PREV_HOST = "https://previous-runs-api.open-meteo.com/v1/forecast";
 const ARCH_HOST = "https://archive-api.open-meteo.com/v1/archive";
@@ -606,6 +606,7 @@ const I18N = {
     syncing:"更新中…", synced:(n,last)=>`已更新 · ${n} 天可比对${last?` · 实际雨量到 ${last}`:""}`,
     syncPartial:(names,n)=>`⚠ 部分未更新：${names}（已保留旧数据，稍后再按一次）· ${n} 天可比对`,
     notRanked:(n,mx)=>`仅 ${n}/${mx} 天 · 暂不排名`,
+    dataReset:"已全部清零重新开始：旧记录已删除（果园名单保留），现在只用修正后的数据重新累积。",
     noOverlap:"各模式还没有足够的共同日子，暂时不判输赢——继续累积数据。",
     refMigrated:"实际雨量已改用真正的 ERA5（旧数据混有 IFS 分析），正在重新计分…",
     exportErr:"导出失败：Excel 组件未载入，请联网后重开一次",
@@ -683,6 +684,7 @@ const I18N = {
     syncing:"Updating…", synced:(n,last)=>`Updated · ${n} comparable day${n===1?"":"s"}${last?` · actual rain to ${last}`:""}`,
     syncPartial:(names,n)=>`⚠ Not all updated: ${names} (older data kept — try again shortly) · ${n} comparable day${n===1?"":"s"}`,
     notRanked:(n,mx)=>`only ${n}/${mx} days · not ranked yet`,
+    dataReset:"Clean sheet: all old records cleared (orchard list kept) — scores now rebuild from corrected data only.",
     noOverlap:"The models don't share enough days yet, so no winner is named — keep gathering data.",
     refMigrated:"Actual rain now uses true ERA5 (old values were mixed with IFS analysis) — re-scoring…",
     exportErr:"Export failed: the Excel component didn't load — reopen once while online",
@@ -914,6 +916,22 @@ if(state.seeded && state.locations && (state.seedVersion||0) < SEED_VERSION){
    mixed with ERA5 — and each farm's actual-fetch flag is cleared so the next sync
    refetches the full history from ERA5. Forecast values are untouched (they were always
    per-model). Runs once; the stored refVersion gates it. */
+/* One-time CLEAN SHEET (2026-09-27): every stored forecast and actual was captured by
+   builds before v45 — actuals from the Best Match blend, and forecast totals that could
+   include short, partly-missing days. Wipe ALL records and fetch flags once, keep the
+   orchard list, model selection and settings. The next sync refills the last 7 days of
+   forecasts and the ERA5 actuals using only the fixed code. DATA_EPOCH gates it: it
+   runs once per install and never again. */
+const DATA_EPOCH = "2026-0927-clean";
+let DATA_RESET = false;
+if(state.dataEpoch !== DATA_EPOCH){
+  const had = Object.values(state.records||{}).some(r=>r && Object.keys(r).length);
+  state.records = {};
+  state.fetchedOn = {};
+  state.dataEpoch = DATA_EPOCH;
+  DATA_RESET = had;
+  save();
+}
 let REF_MIGRATED = false;
 if(state.refVersion !== REF_VERSION){
   let wiped = 0;
@@ -2677,7 +2695,8 @@ $("#rangeSeg").addEventListener("click",e=>{
 /* ---------- boot: render, then log-on-open auto-sync of active location ---------- */
 renderAll();
 initLocMaster();          // set up the master location-manager collapse (collapsed by default once seeds exist)
-if(REF_MIGRATED) showToast(T().refMigrated);   // one-time: tell the user why scores changed
+if(DATA_RESET) showToast(T().dataReset);           // one-time clean sheet notice
+else if(REF_MIGRATED) showToast(T().refMigrated);   // one-time: tell the user why scores changed
 if(activeLoc) doSync();   // log-on-open + gap-fill happens here every launch
 
 if("serviceWorker" in navigator){

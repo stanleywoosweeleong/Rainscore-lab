@@ -2,7 +2,7 @@
    Rule #1: API requests (Open-Meteo) must pass through untouched — bare return,
    never respondWith(JSON). We only cache the app shell. */
 const CACHE_PREFIX = "rainscore-lab-";
-const CACHE = CACHE_PREFIX + "20260927-45";
+const CACHE = CACHE_PREFIX + "20260927-46";
 const SHELL = ["./", "./index.html", "./manifest.json", "./xlsx_full_min.js"];
 
 self.addEventListener("install", e=>{
