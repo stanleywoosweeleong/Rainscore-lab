@@ -17,8 +17,10 @@ best at your locations, then set the winners as the default in the main app.
 Put all files in the root of a **new** GitHub repo (suggested name: `Rainscore-lab`).
 If you use a different repo name, update two constants in `index.html` —
 `APP_URL` and `GITHUB_URL` — and the QR will need regenerating to match.
-Because GitHub Pages serves each repo from its own origin, this build keeps its
-own independent history, separate from the production RainScore.
+Note: all your GitHub Pages repos share ONE origin (stanleywoosweeleong.github.io).
+This build stays independent of production because it uses its own localStorage key
+(`rainscore_lab_v1`) and only ever touches service-worker caches whose name starts
+with `rainscore-lab-`.
 
 ## How to use it for model research
 1. Add your real orchard locations (same coordinates as production).
@@ -31,4 +33,8 @@ Only global models that cover Malaysia with reliable archived precipitation:
 ECMWF IFS 9km, DWD ICON, JMA GSM, CMA GRAPES, GEM (Canada), GFS (USA).
 AI models (GraphCast, AIFS) are excluded — they don't serve usable rainfall.
 
-Data: Open-Meteo (CC BY 4.0). Forecasts via Previous Runs API; actuals ERA5.
+Data: Open-Meteo (CC BY 4.0). Forecasts via Previous Runs API; actuals ERA5, pinned
+with `models=era5` (the archive default "Best Match" is IFS analysis for recent days,
+which would score IFS against itself). Only complete 24-hour local days are scored.
+The SheetJS file is `xlsx_full_min.js` — keep that exact name (index.html and sw.js
+both reference it).

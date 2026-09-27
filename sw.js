@@ -1,15 +1,20 @@
 /* RainScore service worker — offline shell only.
    Rule #1: API requests (Open-Meteo) must pass through untouched — bare return,
    never respondWith(JSON). We only cache the app shell. */
-const CACHE = "rainscore-lab-20260701-44";
-const SHELL = ["./", "./index.html", "./manifest.json", "./xlsx.full.min.js"];
+const CACHE_PREFIX = "rainscore-lab-";
+const CACHE = CACHE_PREFIX + "20260927-45";
+const SHELL = ["./", "./index.html", "./manifest.json", "./xlsx_full_min.js"];
 
 self.addEventListener("install", e=>{
   e.waitUntil(caches.open(CACHE).then(c=>c.addAll(SHELL)).then(()=>self.skipWaiting()));
 });
 self.addEventListener("activate", e=>{
   e.waitUntil(
-    caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE).map(k=>caches.delete(k))))
+    // Cache Storage is shared by the whole ORIGIN (stanleywoosweeleong.github.io), i.e. by
+    // every GitHub Pages repo under the account. Only delete OUR old versions — never
+    // another app's cache (production RainScore, WeatherNext, etc.).
+    caches.keys().then(keys=>Promise.all(
+      keys.filter(k=>k.startsWith(CACHE_PREFIX) && k!==CACHE).map(k=>caches.delete(k))))
       .then(()=>self.clients.claim())
   );
 });

@@ -222,6 +222,7 @@ input:focus,select:focus{outline:2px solid var(--rain);outline-offset:0}
 .conf-high{background:rgba(123,216,143,.18);color:#7bd88f}
 /* sub-metrics under each value */
 .subm{margin-top:3px;font-size:10px;line-height:1.3}
+.subm.unranked{font-size:13px;font-weight:600;color:var(--ink)}
 .bias.wet{color:#6db3f0} .bias.dry{color:#e3a857} .bias.zero{color:var(--ink2)}
 .errsplit{display:flex;flex-direction:column;gap:1px;align-items:center}
 .errsplit .miss{color:#f08fb0} .errsplit .fa{color:var(--ink2)}
@@ -516,7 +517,7 @@ footer{text-align:center;padding:18px 10px 8px;font-size:11px;color:var(--ink2)}
   <div id="tableMount"></div>
 </div>
 
-<script src="./xlsx.full.min.js"></script>
+<script src="./xlsx_full_min.js"></script>
 <script>
 /* ============ RainScore — forecast-vs-actual rainfall scorecard ============
    Conventions: single-file PWA, localStorage, Asia/Kuching, no fabricated data.
@@ -525,10 +526,23 @@ footer{text-align:center;padding:18px 10px 8px;font-size:11px;color:var(--ink2)}
 
 const TZ = "Asia/Kuching";
 const STORE_KEY = "rainscore_lab_v1";
-const CACHE_TAG = "rainscore-lab-20260627-37";
+const CACHE_TAG = "rainscore-lab-20260927-45";
 const DRY_THRESHOLD = 1.0;   // mm — <1mm counts as a "dry day" (field-adjustable)
 const PREV_HOST = "https://previous-runs-api.open-meteo.com/v1/forecast";
 const ARCH_HOST = "https://archive-api.open-meteo.com/v1/archive";
+/* Reference ("actual") dataset. MUST be pinned explicitly: without `models`, the archive
+   API returns its "Best Match" blend, which for recent days is ECMWF IFS HRES analysis
+   (9 km grid) — i.e. IFS would be scored against IFS. Checked 2026-09-27 at Triang
+   (3.779,101.941), Sep 10–12: default blend 2.1/6.2/6.4 mm vs ERA5 23.2/32.3/14.5 mm.
+   REF_VERSION is stored with the data; when it changes, every stored actual is wiped
+   and refetched so old-reference values can never mix with new ones. */
+const REF_MODEL   = "era5";
+const REF_VERSION = "era5-hourly-v1";
+const REF_LABEL   = "ERA5 reanalysis (Open-Meteo archive, models=era5, 0.25° grid)";
+const SCORE_WINDOW = 30;          // days — longest selectable range; actuals always cover it
+const ACT_BACKFILL_MAX = 400;     // days — oldest stored day we will re-fetch actuals for
+const HOURS_PER_DAY = 24;         // Asia/Kuching has no DST: a complete local day = 24 hourly values
+const MIN_COVER_FRAC = 0.8;       // a model must cover ≥80% of the scored days to be ranked
 
 /* The full pool of models the user can choose from. Each entry: `key` (stored
    data key, never reused), `api` (Open-Meteo model id), `cssVar` (display colour),
@@ -571,7 +585,7 @@ const I18N = {
     gps:"使用我的 GPS", save:"保存地点", data:"数据", sync:"更新记录", exportCsv:"导出 Excel 原始数据", dataSheet:"每日数据",
     foot:"预报：ECMWF IFS 9km · DWD ICON · JMA GSM · 实际：ERA5 再分析 · CC BY 4.0",
     langBtn:"中",
-    emptyLoc:"点右上角 ＋ 新增第一个果园地点", emptyLocBig:"📍", filterPlaceholder:"搜索果园名…", noMatch:"没有符合的果园", ungrouped:"其他", updateRegion:"更新此区所有果园", regionDone:(n)=>`已更新 ${n} 个果园`, regionDonePartial:(ok,n)=>`已更新 ${ok}/${n} 个（部分失败，可重试）`, driveTitle:"开车模式：慢慢抓取全部果园", driveProg:"抓取进度", driveDoneShort:"✓ 完成", driveNone:"还没有果园可抓取", driveStart:(n)=>`开车模式：开始慢慢抓取 ${n} 个果园，可关屏但请别关 App`, driveDone:(n,sk)=>sk?`全部 ${n} 个已就绪（其中 ${sk} 个今天已抓取）`:`全部 ${n} 个果园已抓取完成 ✓`, driveDonePartial:(ok,n)=>`已抓取 ${ok}/${n} 个（部分失败，再按一次补抓）`, driveStopped:(d,n)=>`已停止（完成 ${d}/${n}，再按继续）`, resTitle:"哪个模式赢 IFS？", resIntro:"对比每个果园：有没有别的模式在「雨量」和「晴雨判断」上都赢过你目前广播用的 ECMWF IFS 9km。下面「可信」一栏要求样本够多（≥20 天）且赢得够明显，才会列入——可作为该地区换模式的参考。", resConfidentH:"可信：某模式稳定赢 IFS", resWatchH:"值得观察（样本或幅度还不够）", resBeatsAt:(n)=>`在 ${n} 个果园赢 IFS`, resBeatLine:(name,mae,hit)=>`${name}：雨量准 ${mae}mm，晴雨高 ${hit}%`, resNeedMore:"需更多天", resNoneConfident:"目前还没有任何模式稳定赢过 IFS——继续累积数据。", resNoneWatch:"暂无观察名单。", resIfsBest:"IFS 仍最佳", resThin:"样本太少", resNoData:"暂无数据", resCaveat:"⚠ 仅供参考。热带骤雨变化大，换模式前请用更长时间、并结合地面雨量筒验证。", resTitleBtn:"结果：哪个模式赢 IFS", resStatusEmpty:"<b>还没有可比对的数据。</b>先用 🚗 开车模式抓取各果园，或打开某个果园按「更新记录」。实际雨量（ERA5）约延迟 5 天，所以最近几天要过几天才有分数。", resStatusBuilding:(w,tot,mx,need)=>`<b>数据正在累积中，这很正常。</b>目前 ${tot} 个果园里有 ${w} 个开始有分数，最多的一个累积了 <b>${mx}/${need} 天</b>。<br>还没有任何结论——样本太少时排名会乱跳，<b>千万别凭几天数据就换模式</b>。<br>👉 每天用（或每天开车模式抓一次），约 <b>3–4 周</b>后果园陆续满 20 天，真正稳定赢 IFS 的模式就会出现在上面。`, resStatusIfsHolds:"<b>已有足够数据的果园里，目前 IFS 仍然最稳。</b>这本身就是有用的结论——代表你现在广播用的模式没问题。继续累积，若某地区有模式后来居上，会自动列到上面。", resStatusHasWinners:(n)=>`<b>已找到 ${n} 个果园有模式稳定赢过 IFS。</b>见下方「可信」名单。换模式前，仍建议再观察一段时间并结合地面雨量筒。`, resPOD:"接住雨", resFAR:"空报", resCSI:"综合", resDecideH:"该不该换模式？看三件事", resQ1:"它接得住该下的雨吗？", resQ1sub:"「接住雨」＝该下雨的日子里，它预报对了几成（越高越好）。漏掉大雨最伤果园。（POD 命中率）", resQ2:"它会不会常常空报？", resQ2sub:"「空报」＝它说会下、结果没下的比例（越低越好）。常空报会让你白忙。（FAR 误报率）", resQ3:"综合表现比 IFS 好吗？", resQ3sub:"「综合」＝把接住雨和空报合起来的总分（越高越好）。这一个数最能代表整体（CSI 综合指数）。", resDecideRule:"👉 只有当某模式「接住雨」更高、「空报」更低、「综合」也更高，而且累积了 20 天以上，才值得考虑在这个地区换用它。任何一项不如 IFS，就先别换。",
+    emptyLoc:"点右上角 ＋ 新增第一个果园地点", emptyLocBig:"📍", filterPlaceholder:"搜索果园名…", noMatch:"没有符合的果园", ungrouped:"其他", updateRegion:"更新此区所有果园", regionDone:(n)=>`已更新 ${n} 个果园`, regionDonePartial:(ok,n)=>`已更新 ${ok}/${n} 个（部分失败，可重试）`, driveTitle:"开车模式：慢慢抓取全部果园", driveProg:"抓取进度", driveDoneShort:"✓ 完成", driveNone:"还没有果园可抓取", driveStart:(n)=>`开车模式：开始慢慢抓取 ${n} 个果园，可关屏但请别关软件`, driveDone:(n,sk)=>sk?`全部 ${n} 个已就绪（其中 ${sk} 个今天已抓取）`:`全部 ${n} 个果园已抓取完成 ✓`, driveDonePartial:(ok,n)=>`已抓取 ${ok}/${n} 个（部分失败，再按一次补抓）`, driveStopped:(d,n)=>`已停止（完成 ${d}/${n}，再按继续）`, resTitle:"哪个模式赢 IFS？", resIntro:"对比每个果园：有没有别的模式在「雨量」和「晴雨判断」上都赢过你目前广播用的 ECMWF IFS 9km。下面「可信」一栏要求样本够多（≥20 天）且赢得够明显，才会列入——可作为该地区换模式的参考。", resConfidentH:"可信：某模式稳定赢 IFS", resWatchH:"值得观察（样本或幅度还不够）", resBeatsAt:(n)=>`在 ${n} 个果园赢 IFS`, resBeatLine:(name,mae,hit)=>`${name}：雨量准 ${mae}mm，晴雨高 ${hit}%`, resNeedMore:"需更多天", resNoneConfident:"目前还没有任何模式稳定赢过 IFS——继续累积数据。", resNoneWatch:"暂无观察名单。", resIfsBest:"IFS 仍最佳", resThin:"样本太少", resNoData:"暂无数据", resCaveat:"⚠ 仅供参考。热带骤雨变化大，换模式前请用更长时间、并结合地面雨量筒验证。", resTitleBtn:"结果：哪个模式赢 IFS", resStatusEmpty:"<b>还没有可比对的数据。</b>先用 🚗 开车模式抓取各果园，或打开某个果园按「更新记录」。实际雨量（ERA5）约延迟 5 天，所以最近几天要过几天才有分数。", resStatusBuilding:(w,tot,mx,need)=>`<b>数据正在累积中，这很正常。</b>目前 ${tot} 个果园里有 ${w} 个开始有分数，最多的一个累积了 <b>${mx}/${need} 天</b>。<br>还没有任何结论——样本太少时排名会乱跳，<b>千万别凭几天数据就换模式</b>。<br>👉 每天用（或每天开车模式抓一次），约 <b>3–4 周</b>后果园陆续满 20 天，真正稳定赢 IFS 的模式就会出现在上面。`, resStatusIfsHolds:"<b>已有足够数据的果园里，目前 IFS 仍然最稳。</b>这本身就是有用的结论——代表你现在广播用的模式没问题。继续累积，若某地区有模式后来居上，会自动列到上面。", resStatusHasWinners:(n)=>`<b>已找到 ${n} 个果园有模式稳定赢过 IFS。</b>见下方「可信」名单。换模式前，仍建议再观察一段时间并结合地面雨量筒。`, resPOD:"接住雨", resFAR:"空报", resCSI:"综合", resDecideH:"该不该换模式？看三件事", resQ1:"它接得住该下的雨吗？", resQ1sub:"「接住雨」＝该下雨的日子里，它预报对了几成（越高越好）。漏掉大雨最伤果园。（POD 命中率）", resQ2:"它会不会常常空报？", resQ2sub:"「空报」＝它说会下、结果没下的比例（越低越好）。常空报会让你白忙。（FAR 误报率）", resQ3:"综合表现比 IFS 好吗？", resQ3sub:"「综合」＝把接住雨和空报合起来的总分（越高越好）。这一个数最能代表整体（CSI 综合指数）。", resDecideRule:"👉 只有当某模式「接住雨」更高、「空报」更低、「综合」也更高，而且累积了 20 天以上，才值得考虑在这个地区换用它。任何一项不如 IFS，就先别换。",
     pickLoc:"选择上方地点查看记分", noData:"尚无记录，点「更新记录」",
     how:"每次打开会记录各模型对「今天」的雨量预报，并用最近 7 天的存档自动补回遗漏的日子。实际雨量用 ERA5 再分析回填（约延迟 5 天）。",
     mae:"平均误差", maeUnit:"毫米/天", hit:"晴雨命中", hitUnit:"准确率",
@@ -589,7 +603,13 @@ const I18N = {
     colDate:"日期", colAct:"实际",
     pending:"待回填", legendHit:"晴雨判对", legendMiss:"晴雨判错",
     models:{ ifs:"IFS 9km", icon:"ICON", jma:"JMA", cma:"CMA", gem:"GEM", gfs:"GFS" },
-    syncing:"更新中…", synced:(n)=>`已更新 · ${n} 天有实际数据`,
+    syncing:"更新中…", synced:(n,last)=>`已更新 · ${n} 天可比对${last?` · 实际雨量到 ${last}`:""}`,
+    syncPartial:(names,n)=>`⚠ 部分未更新：${names}（已保留旧数据，稍后再按一次）· ${n} 天可比对`,
+    notRanked:(n,mx)=>`仅 ${n}/${mx} 天 · 暂不排名`,
+    noOverlap:"各模式还没有足够的共同日子，暂时不判输赢——继续累积数据。",
+    refMigrated:"实际雨量已改用真正的 ERA5（旧数据混有 IFS 分析），正在重新计分…",
+    exportErr:"导出失败：Excel 组件未载入，请联网后重开一次",
+    coordErr:"坐标超出范围（纬度 −90～90，经度 −180～180）",
     syncErr:"更新失败，请检查网络", gpsErr:"无法取得定位", gpsOk:"已带入坐标",
     needName:"请填写名称与坐标", confirmDel:"删除此地点及其记录？",
     cache:`缓存 ${CACHE_TAG}`, del:"删除",
@@ -617,11 +637,11 @@ const I18N = {
     cancel:"取消", save:"保存",
     previewTitle:"预览讯息", previewHint:"可在发送前修改或加上你的话：",
     copyBtn:"复制", sendWA:"发送到 WhatsApp",
-    guideTitle:"使用指南", guideScan:"扫码打开 / 分享此 App",
-    guideAppLink:"打开 App 网址", guideRepo:"GitHub 源代码",
+    guideTitle:"使用指南", guideScan:"扫码打开 / 分享此软件",
+    guideAppLink:"打开软件网址", guideRepo:"GitHub 源代码",
     guideFoot:"数据来源：Open-Meteo（CC BY 4.0）· 预报模式：IFS 9km、ICON、JMA、CMA、GEM、GFS<br>实际雨量 ERA5 再分析",
     guideSections:[
-      { h:"这个 App 做什么？", p:"你平时用的天气 App，背后其实是某一个「天气模式」在算。世界上有好几个国家各自做了自己的模式，对同一个地方、同一天的雨量，它们的预报可能差很多。这个 App 把多个模式对你果园的雨量预报，跟事后的实际雨量比一比，找出哪个模式在你这里最准。" },
+      { h:"这个软件做什么？", p:"你平时用的天气软件，背后其实是某一个「天气模式」在算。世界上有好几个国家各自做了自己的模式，对同一个地方、同一天的雨量，它们的预报可能差很多。这个软件把多个模式对你果园的雨量预报，跟事后的实际雨量比一比，找出哪个模式在你这里最准。" },
       { h:"什么是「天气模式」？", p:"就是一套超级电脑跑的天气计算程序。气象局把今天的大气状况（温度、湿度、风…）输入进去，电脑往后推算未来几天的天气。不同国家用不同的程序和超级电脑，所以结果不一样——就像不同厨师用同样的食材，做出来的味道不同。" },
       { h:"六个模式是谁？", p:"每个都是某个国家气象局跑的全球预报模式，覆盖马来西亚、降水数据可靠：<br><br><b>IFS 9km</b>＝欧洲中期预报中心（ECMWF），分辨率约 9 公里，公认全球最准之一，也是你目前广播在用的。<br><b>ICON</b>＝德国气象局（DWD），约 11 公里，欧洲主力模式。<br><b>JMA</b>＝日本气象厅，对热带亚洲经验深、表现稳。<br><b>CMA</b>＝中国气象局，地理上最邻近、覆盖好。<br><b>GEM</b>＝加拿大环境部，全球模式，作为对照。<br><b>GFS</b>＝美国 NOAA，存档历史最长、最稳定。<br><br>选 1 到 6 个一起比。AI 模式（GraphCast、AIFS）不在内——它们的降水数据在 Open-Meteo 上不可用。" },
       { h:"两个主要分数", p:"「平均误差」＝预报的雨量数字差多少毫米（越小越准）。「晴雨命中」＝判断「那天有没有下雨」对的比率（越高越准）。一个看雨量多少，一个看到底下不下——两者不一样，有的模式雨量准但晴雨判断差，反之亦然。" },
@@ -630,10 +650,10 @@ const I18N = {
       { h:"「漏雨 / 空报」", p:"在晴雨命中下面。「漏雨」＝模式说没雨、结果下了（危险，会被淋到）。「空报」＝模式说有雨、结果没下（虚惊）。同样命中率，漏雨少的模式更可靠、更安全。" },
       { h:"「样本太少 / 参考 / 可靠」", p:"顶部的小标签。实际雨量（ERA5）约延迟 5 天，所以刚开始能比对的天数很少，排名会跳动、不可靠。少于 8 天＝样本太少；8–19 天＝参考；20 天以上＝可靠。等到「可靠」再下结论。" },
       { h:"怎么用", p:"果园已经<b>预先载入</b>（见下），<b>直接选一个来看就行</b>——不必自己添加。想加自己的果园也可以：点右上角 ＋（输入坐标或用 GPS）。点「模式」选要比的模式（1–6 个）。每天打开会自动记录当天预报，并用最近 7 天存档补回遗漏的日子。记录一天天累积，约一个月后最完整。想一次抓很多果园，用下面的「三种更新方式」。" },
-      { h:"果园已预先载入", p:"App 已为你预载约 110 个果园地点（WeatherNext 大家庭的所有果园），<b>无需自己逐个添加</b>。地点按地区分组，点地区标题展开或收起。果园多时上方会出现搜索框，可按名字快速查找。你选中的果园所在地区，标题上会直接显示该果园名字，方便辨认。" },
-      { h:"三种更新方式", p:"<b>① 单个果园：</b>选中某果园后，点「更新记录」只刷新这一个（强制重新抓取当天数据）。<br><b>② 整个地区：</b>展开地区后，点标题右边的 <b>↻</b> 按钮，会依次更新该地区<b>所有</b>果园，按钮上显示进度（如 3/15）。<br><b>③ 全部果园（🚗 开车模式）：</b>点顶部 <b>🚗</b>，App 会慢慢地一个一个抓取全部 114 个果园，按钮上显示进度（如 47/114）。抓取时屏幕会转成<b>全黑省电画面</b>，中间显示大大的进度和正在抓取的果园名——黑色能让 OLED 屏更省电，适合睡前跑。特意放慢速度以免触发限流；出门前按一下，开车到果园时差不多就抓完了。中途来电可再按一下暂停，回头再按继续（会接着抓、不重复）。已抓过的当天会自动跳过。抓取时请让 App 保持在前台（屏幕会自动保持常亮）；若切到别的 App 或锁屏，系统会暂停网页，回来后可再按继续。<br><br>②③ 都会沿用当天缓存、对服务器友好；① 是强制刷新单个果园。" },
+      { h:"果园已预先载入", p:"软件已为你预载约 110 个果园地点（WeatherNext 大家庭的所有果园），<b>无需自己逐个添加</b>。地点按地区分组，点地区标题展开或收起。果园多时上方会出现搜索框，可按名字快速查找。你选中的果园所在地区，标题上会直接显示该果园名字，方便辨认。" },
+      { h:"三种更新方式", p:"<b>① 单个果园：</b>选中某果园后，点「更新记录」只刷新这一个（强制重新抓取当天数据）。<br><b>② 整个地区：</b>展开地区后，点标题右边的 <b>↻</b> 按钮，会依次更新该地区<b>所有</b>果园，按钮上显示进度（如 3/15）。<br><b>③ 全部果园（🚗 开车模式）：</b>点顶部 <b>🚗</b>，软件会慢慢地一个一个抓取全部 114 个果园，按钮上显示进度（如 47/114）。抓取时屏幕会转成<b>全黑省电画面</b>，中间显示大大的进度和正在抓取的果园名——黑色能让 OLED 屏更省电，适合睡前跑。特意放慢速度以免触发限流；出门前按一下，开车到果园时差不多就抓完了。中途来电可再按一下暂停，回头再按继续（会接着抓、不重复）。已抓过的当天会自动跳过。抓取时请让软件保持在前台（屏幕会自动保持常亮）；若切到别的软件或锁屏，系统会暂停网页，回来后可再按继续。<br><br>②③ 都会沿用当天缓存、对服务器友好；① 是强制刷新单个果园。" },
       { h:"🏆 结果卡：哪个模式赢 IFS", p:"点顶部 <b>🏆</b> 打开跨果园总结。它扫描全部果园，找出<b>哪些果园有别的模式稳定赢过 IFS 9km</b>（你目前广播用的）。<br><b>「可信」</b>一栏：只列出累积 ≥20 天、且在「雨量」和「晴雨判断」上都明显赢 IFS 的果园——可作为该地区换模式的依据。<br><b>「值得观察」</b>一栏：已领先但样本或幅度还不够，先看着。<br>每张卡片会用三个白话分数跟 IFS 对比：<b>接住雨（POD）</b>、<b>空报（FAR）</b>、<b>综合（CSI）</b>，并在底部教你「该不该换模式，看三件事」。<br><b>重要：</b>刚开始几乎全部果园都在「暂无数据 / 样本太少」，这是正常的——实际雨量 ERA5 延迟约 5 天，要每天用（或每天开车模式抓一次），约 3–4 周后才会陆续满 20 天、出现真正的结论。<b>千万别凭几天数据就换模式。</b>" },
-      { h:"方法说明（技术）", p:"预报：Open-Meteo「Previous Runs」API 的 precipitation_previous_day1，即各模式在前一天对该日的 24 小时预报（前置时间固定为 24h）。逐时降水按 Asia/Kuching 本地日累加为日总量。实际：ERA5 再分析（archive-api），约延迟 5 天。注意 ERA5 本身是同化模式的网格估计，非实地雨量计，对热带对流性降雨有已知局限。「有雨」阈值＝1.0 mm/日。平均误差＝MAE；偏向＝平均带符号误差；漏雨／空报＝2×2 列联表的漏报与误报。样本少时差异未必有统计显著性——本 App 只给启发式可靠度标签，不做显著性检验。要自己分析可用「导出 Excel」。" },
+      { h:"方法说明（技术）", p:"预报：Open-Meteo「Previous Runs」API 的 precipitation_previous_day1，即各模式在前一天对该日的 24 小时预报（前置时间固定为 24h）。逐时降水按 Asia/Kuching 本地日累加为日总量，只有 24 小时齐全的日子才计入（缺任何一小时＝该日待定，不当作少雨）。实际：ERA5 再分析（archive-api，明确指定 models=era5，约 0.25° 网格≈28 公里），约延迟 5–6 天；不用预设的 Best Match，因为它近期其实是 IFS 分析，会让 IFS 跟自己比。排名：所有模式都在「同一批日子」上比较；覆盖不足 80% 的模式暂不排名。「赢 IFS」只看该模式与 IFS 都有数据的配对日子，≥20 个配对日才算可信。注意 ERA5 本身是同化模式的网格估计，非实地雨量计，对热带对流性降雨有已知局限。「有雨」阈值＝1.0 mm/日。平均误差＝MAE；偏向＝平均带符号误差；漏雨／空报＝2×2 列联表的漏报与误报。样本少时差异未必有统计显著性——本软件只给启发式可靠度标签，不做显著性检验。要自己分析可用「导出 Excel」。" },
     ],
   },
   en:{
@@ -660,7 +680,13 @@ const I18N = {
     colDate:"Date", colAct:"Actual",
     pending:"pending", legendHit:"dry/wet right", legendMiss:"dry/wet wrong",
     models:{ ifs:"IFS 9km", icon:"ICON", jma:"JMA", cma:"CMA", gem:"GEM", gfs:"GFS" },
-    syncing:"Updating…", synced:(n)=>`Updated · ${n} days with actuals`,
+    syncing:"Updating…", synced:(n,last)=>`Updated · ${n} comparable day${n===1?"":"s"}${last?` · actual rain to ${last}`:""}`,
+    syncPartial:(names,n)=>`⚠ Not all updated: ${names} (older data kept — try again shortly) · ${n} comparable day${n===1?"":"s"}`,
+    notRanked:(n,mx)=>`only ${n}/${mx} days · not ranked yet`,
+    noOverlap:"The models don't share enough days yet, so no winner is named — keep gathering data.",
+    refMigrated:"Actual rain now uses true ERA5 (old values were mixed with IFS analysis) — re-scoring…",
+    exportErr:"Export failed: the Excel component didn't load — reopen once while online",
+    coordErr:"Coordinates out of range (lat −90…90, lon −180…180)",
     syncErr:"Update failed — check connection", gpsErr:"Couldn't get location", gpsOk:"Coordinates filled",
     needName:"Enter a name and coordinates", confirmDel:"Delete this location and its records?",
     cache:`Cache ${CACHE_TAG}`, del:"Delete",
@@ -704,7 +730,7 @@ const I18N = {
       { h:"Your orchards are pre-loaded", p:"The app comes with ~110 orchards already loaded (every farm in the WeatherNext family), so <b>you don't have to add them yourself</b>. They're grouped by region — tap a region heading to expand or collapse it. When the list is long a search box appears on top to jump to a farm by name. The region holding your selected farm shows that farm's name right in its heading, so you can always see which one is active." },
       { h:"Three ways to update", p:"<b>① One orchard:</b> with a farm selected, tap \"Update records\" to refresh just that one (a forced re-fetch of today's data).<br><b>② A whole region:</b> expand a region and tap the <b>↻</b> button on its heading to update <b>every</b> orchard in it, with progress shown on the button (e.g. 3/15).<br><b>③ All orchards (🚗 drive mode):</b> tap <b>🚗</b> at the top and the app slowly gathers all 114 orchards one by one, with progress on the button (e.g. 47/114). While it runs the screen turns <b>fully black to save battery</b>, showing a big centred progress count and the orchard being fetched (black keeps OLED pixels off) — ideal to run overnight. It's paced deliberately slowly to avoid rate limits — tap it before you leave and by the time you reach the orchard it's usually done. If a call interrupts, tap to pause and tap again to resume (it picks up where it left off, no double-fetching). Orchards already done today are skipped. Keep the app in the foreground while it runs (the screen stays awake automatically); if you switch to another app or lock the phone, the system pauses the page — just return and tap to resume.<br><br>② and ③ reuse today's cache and are gentle on the server; ① is a forced refresh of a single orchard." },
       { h:"🏆 Results card: which model beats IFS", p:"Tap <b>🏆</b> at the top to open the cross-orchard summary. It scans every orchard and finds <b>where another model reliably beats IFS 9km</b> (the one your broadcast uses).<br><b>\"Confident\"</b> lists only orchards with ≥20 days that beat IFS clearly on both rainfall amount and dry/wet calls — a fair basis for a regional model switch.<br><b>\"Worth watching\"</b> lists ones that lead but whose sample or margin is still thin.<br>Each card compares three plain-language scores against IFS: <b>Catches rain (POD)</b>, <b>False alarms (FAR)</b>, and <b>Overall (CSI)</b>, with a \"should you switch? look at three things\" helper at the bottom.<br><b>Important:</b> early on almost every orchard sits in \"no data / too few days\" — that's normal. Actual rain (ERA5) lags ~5 days, so you must use it daily (or run drive-mode once a day); after about 3–4 weeks orchards cross 20 days and real conclusions appear. <b>Never switch models on a handful of days.</b>" },
-      { h:"Methodology (technical)", p:"Forecasts: Open-Meteo \"Previous Runs\" API, variable precipitation_previous_day1 — each model's 24-hour-ahead forecast for that day (lead time held constant at 24h). Hourly precip is summed to local-day totals on Asia/Kuching. Actuals: ERA5 reanalysis (archive-api), ~5-day lag. Note ERA5 is itself a model-assimilated gridded estimate, not a physical rain gauge, with known limitations for convective tropical rainfall. Wet-day threshold = 1.0 mm/day. Avg miss = MAE; bias = mean signed error; missed/false = the miss and false-alarm cells of the 2×2 contingency table. With small samples, differences may not be statistically significant — this app gives only a heuristic reliability tag, not a significance test. Use \"Export Excel\" to run your own analysis." },
+      { h:"Methodology (technical)", p:"Forecasts: Open-Meteo \"Previous Runs\" API, variable precipitation_previous_day1 — each model's 24-hour-ahead forecast for that day (lead time held constant at 24h). Hourly precip is summed to local-day totals on Asia/Kuching, and only days with all 24 hours present count (a missing hour leaves the day pending — never a short, dry-looking total). Actuals: ERA5 reanalysis (archive-api, pinned with models=era5, ~0.25° grid ≈ 28 km), ~5–6-day lag. The default Best Match is NOT used: for recent days it is IFS analysis, which would score IFS against itself. Ranking: all models are compared on the same days; a model covering under 80% of them is not ranked yet. \"Beats IFS\" uses only days where both that model and IFS have data, and needs ≥20 such paired days to be confident. Note ERA5 is itself a model-assimilated gridded estimate, not a physical rain gauge, with known limitations for convective tropical rainfall. Wet-day threshold = 1.0 mm/day. Avg miss = MAE; bias = mean signed error; missed/false = the miss and false-alarm cells of the 2×2 contingency table. With small samples, differences may not be statistically significant — this app gives only a heuristic reliability tag, not a significance test. Use \"Export Excel\" to run your own analysis." },
     ],
   }
 };
@@ -882,7 +908,25 @@ if(state.seeded && state.locations && (state.seedVersion||0) < SEED_VERSION){
   state.seedVersion = SEED_VERSION;
   save();
 }
-let activeLoc = (state.locations.find(l=>!l.deleted)||{}).id || null;
+
+/* Reference-dataset migration. Installs before REF_VERSION stored "actual" rainfall from
+   the Best Match blend (mostly IFS analysis), not ERA5. Those values are wiped — never
+   mixed with ERA5 — and each farm's actual-fetch flag is cleared so the next sync
+   refetches the full history from ERA5. Forecast values are untouched (they were always
+   per-model). Runs once; the stored refVersion gates it. */
+let REF_MIGRATED = false;
+if(state.refVersion !== REF_VERSION){
+  let wiped = 0;
+  for(const id in (state.records||{})){
+    const recs = state.records[id];
+    for(const day in recs){ if(recs[day] && recs[day].actual!=null){ delete recs[day].actual; wiped++; } }
+  }
+  for(const id in (state.fetchedOn||{})) delete state.fetchedOn[id].__actual;
+  state.refVersion = REF_VERSION;
+  REF_MIGRATED = wiped>0;
+  save();
+}
+let activeLoc =(state.locations.find(l=>!l.deleted)||{}).id || null;
 
 /* ---- master collapse of the whole location manager ---- */
 const LOC_COLLAPSE_KEY = "rainscore_loc_collapsed";
@@ -1015,17 +1059,27 @@ async function runPooled(items, worker, concurrency=2){
 
 /* Sum hourly precipitation into per-local-day totals.
    The Previous Runs API returns hourly arrays; we bucket by local date. */
+/* Only COMPLETE local days are returned. A day with any missing, non-numeric, negative
+   or duplicated hour is left out entirely (stays "pending") — a partly-missing wet day
+   must never masquerade as a dry total. */
+const HOUR_RE = /^(\d{4}-\d{2}-\d{2})T(\d{2}):00$/;
 function bucketHourly(times, values){
   const out = {};
-  if(!times||!values) return out;
+  if(!Array.isArray(times) || !Array.isArray(values) || times.length!==values.length) return out;
+  const acc = {};   // day → { sum, hours:Set, bad }
   for(let i=0;i<times.length;i++){
-    const day = times[i].slice(0,10); // API already returns local time when timezone set
+    const m = HOUR_RE.exec(String(times[i]));   // API returns local time when timezone is set
+    if(!m) continue;
+    const day = m[1], hr = +m[2];
+    const a = acc[day] || (acc[day] = { sum:0, hours:new Set(), bad:false });
     const v = values[i];
-    if(v==null) continue;
-    out[day] = (out[day]||0) + v;
+    if(typeof v!=="number" || !isFinite(v) || v<0 || hr>23 || a.hours.has(hr)){ a.bad = true; continue; }
+    a.hours.add(hr); a.sum += v;
   }
-  // round to 1 dp
-  for(const k in out) out[k] = Math.round(out[k]*10)/10;
+  for(const day in acc){
+    const a = acc[day];
+    if(!a.bad && a.hours.size===HOURS_PER_DAY) out[day] = Math.round(a.sum*10)/10;
+  }
   return out;
 }
 
@@ -1039,151 +1093,216 @@ async function fetchForecastDaily(lat, lon, model, pastDays){
   });
   if(model) params.set("models", model);
   const j = await fetchJSON(`${PREV_HOST}?${params}`);
-  return bucketHourly(j.hourly?.time, j.hourly?.precipitation_previous_day1);
+  if(!j || !j.hourly) throw new Error("no hourly data");
+  return bucketHourly(j.hourly.time, j.hourly.precipitation_previous_day1);
 }
 
-/* Actual daily rain from ERA5 archive (precipitation_sum already daily). */
+/* Actual daily rain from the ERA5 archive, pinned with models=era5 (see REF_MODEL).
+   Fetched HOURLY and summed with the same complete-day rule as the forecasts, so the
+   partly-covered local day at the ERA5 lag edge (ERA5 ends at 00 UTC = 08:00 Kuching)
+   is never stored as a short total. */
 async function fetchActualDaily(lat, lon, startYMD, endYMD){
   const params = new URLSearchParams({
     latitude:lat, longitude:lon, timezone:TZ,
     start_date:startYMD, end_date:endYMD,
-    daily:"precipitation_sum"
+    hourly:"precipitation", models:REF_MODEL
   });
   const j = await fetchJSON(`${ARCH_HOST}?${params}`);
-  const out={}; const t=(j&&j.daily?.time)||[], p=(j&&j.daily?.precipitation_sum)||[];
-  for(let i=0;i<t.length;i++) if(p[i]!=null) out[t[i]] = Math.round(p[i]*10)/10;
-  return out;
+  if(!j || !j.hourly) throw new Error("no hourly data");
+  return bucketHourly(j.hourly.time, j.hourly.precipitation);
 }
 
 /* ---------- the sync routine: log-on-open + 7-day gap-fill + ERA5 actuals ---------- */
+/* Returns an honest per-source report instead of resolving "successfully" no matter what:
+     { ok, stale, failed:[model keys | "__actual"], lastActual:"YYYY-MM-DD"|null }
+   ok = every source that was due today answered with its expected coverage.
+   Callers (single sync, region refresh, drive mode) count a farm as refreshed only if ok. */
 async function syncLocation(loc, pastDays, onStep, force){
-  const recs = state.records[loc.id] || (state.records[loc.id]={});
-  // Per-day fetch cache: once a model is logged today, today's open already has
-  // its data — past-day forecasts don't change, so skip refetching to spare the API.
+  // Coordinates at the START of this sync. If the farm is moved while requests are in
+  // flight, the results belong to the old spot and are discarded (not written).
+  const lat0 = +loc.lat, lon0 = +loc.lon;
+  const moved = ()=> (+loc.lat)!==lat0 || (+loc.lon)!==lon0;
+  const recsNow = ()=> state.records[loc.id] || (state.records[loc.id]={});
+  const fcNow   = ()=>{ const fc=(state.fetchedOn = state.fetchedOn || {}); return (fc[loc.id] = fc[loc.id] || {}); };
+  // Per-day fetch cache: once a model is logged today with full coverage, skip it until
+  // tomorrow — past-day forecasts don't change, so refetching only spends API quota.
   const today = todayYMD();
-  const fc = (state.fetchedOn = state.fetchedOn || {});
-  const locFc = (fc[loc.id] = fc[loc.id] || {});
+  const failed = [];
 
   // 1) Forecasts: recover last min(pastDays,7) days from Previous Runs for every model.
   onStep && onStep("forecast");
   const models = MODELS();
-  // only fetch models not already fetched today for this location
-  const toFetch = force ? models : models.filter(m => locFc[m.key] !== today);
+  const toFetch = force ? models : models.filter(m => fcNow()[m.key] !== today);
   if(toFetch.length){
     const results = await runPooled(
       toFetch,
-      m => fetchForecastDaily(loc.lat, loc.lon, m.api, pastDays).catch(()=>({})),
+      m => fetchForecastDaily(lat0, lon0, m.api, pastDays)
+             .then(daily=>({ok:true, daily}), err=>({ok:false, err})),
       2   // at most 2 model requests in flight — keeps us under Open-Meteo's rate limit
     );
-    results.forEach((daily, i) => {
+    if(moved()) return { ok:false, stale:true, failed:[], lastActual:null };
+    const recs = recsNow(), locFc = fcNow();
+    results.forEach((res, i) => {
       const key = toFetch[i].key;
-      let gotAny = false;
-      for(const day in (daily||{})){
+      if(!res || !res.ok){ failed.push(key); return; }
+      for(const day in res.daily){
         recs[day] = recs[day] || {};
-        if(recs[day][key]==null) recs[day][key] = daily[day];  // first capture wins (honest record)
-        gotAny = true;
+        // bucketHourly only yields complete days, so a complete value may replace an
+        // older one (this also repairs short totals stored by builds before v45).
+        recs[day][key] = res.daily[day];
       }
-      if(gotAny) locFc[key] = today;   // mark fetched today only if data actually came back
+      // Expected coverage: the response must include today's complete 24h forecast.
+      // Anything less is not "done" — it is retried on the next open / drive pass.
+      if(res.daily[today]!=null) locFc[key] = today;
+      else failed.push(key);
     });
   }
 
-  // 2) Actuals: ERA5 over the requested window. ERA5 lags ~5 days, so requesting up
-  //    to today returns nothing (or errors) for the whole window — we must cap the end
-  //    date at the latest day ERA5 actually has, else we store zero actuals and every
-  //    scorecard shows "0 days with actuals" despite forecasts being present.
+  // 2) Actuals: ERA5 (pinned). ERA5 lags ~5–6 days; the archive simply returns nulls for
+  //    hours it doesn't have yet, and bucketHourly drops those incomplete days, so they
+  //    stay pending. Window = the full scoring window (so switching 7d→30d never leaves
+  //    older days without actuals) extended back to the oldest stored day that still has
+  //    no actual (so a reference migration re-scores the whole history in one request).
+  if(driveRunning && driveAbort){ save(); return { ok:false, stale:false, aborted:true, failed, lastActual:lastActualDay(loc.id) }; }
   onStep && onStep("actual");
   const ERA5_LAG_DAYS = 5;
-  const start = daysAgoYMD(pastDays-1), end = daysAgoYMD(ERA5_LAG_DAYS);
-  // actuals also cached per day — only refetch once per calendar day
-  if(force || locFc.__actual !== today){
+  const end = daysAgoYMD(ERA5_LAG_DAYS);
+  let start = daysAgoYMD(Math.max(pastDays, SCORE_WINDOW)-1);
+  const floor = daysAgoYMD(ACT_BACKFILL_MAX);
+  for(const day in recsNow()){
+    const r = recsNow()[day];
+    if(r && r.actual==null && day<start && day>=floor) start = day;
+  }
+  if(force || fcNow().__actual !== today){
     try{
-      const act = await fetchActualDaily(loc.lat, loc.lon, start, end);
+      const act = await fetchActualDaily(lat0, lon0, start, end);
+      if(moved()) return { ok:false, stale:true, failed:[], lastActual:null };
+      const recs = recsNow();
       for(const day in act){ recs[day]=recs[day]||{}; recs[day].actual=act[day]; }
-      // only mark done if we actually got something back; else retry next open
-      if(Object.keys(act).length) locFc.__actual = today;
-    }catch(e){ /* ERA5 lag / transient: recent days simply stay pending */ }
+      // A 30-day window always contains complete ERA5 days; zero back means something
+      // is wrong (outage, bad response) — not done, retry next open.
+      if(Object.keys(act).length) fcNow().__actual = today;
+      else failed.push("__actual");
+    }catch(e){
+      if(moved()) return { ok:false, stale:true, failed:[], lastActual:null };
+      failed.push("__actual");
+    }
   }
 
   save();
+  return { ok: failed.length===0, stale:false, failed, lastActual: lastActualDay(loc.id) };
+}
+/* Latest day that has an ERA5 actual for this farm (shown in the status line so a
+   stalled reference feed is visible, not silent). */
+function lastActualDay(locId){
+  const recs = state.records[locId]||{};
+  let last = null;
+  for(const day in recs) if(recs[day] && recs[day].actual!=null && (!last || day>last)) last = day;
+  return last;
 }
 
 /* ---------- scoring ---------- */
+/* All verification measures for ONE model over an explicit list of days. Every caller
+   passes the same day list to every model it compares, so no model is ever scored on
+   an easier or smaller sample than its rivals. */
+function metricsOn(recs, days, key){
+  let absSum=0, biasSum=0, n=0, hits=0, H=0, Mi=0, F=0;
+  for(const day of days){
+    const r = recs[day]; if(!r) continue;
+    const v = r[key], a = r.actual;
+    if(v==null || a==null) continue;
+    n++; absSum += Math.abs(v-a); biasSum += (v-a);
+    const fcWet = v>=DRY_THRESHOLD, actWet = a>=DRY_THRESHOLD;
+    if(fcWet===actWet) hits++;
+    if(actWet && fcWet) H++;              // correctly predicted a rain day
+    else if(actWet && !fcWet) Mi++;       // rained but model said dry (dangerous)
+    else if(!actWet && fcWet) F++;        // dry but model said rain (annoying)
+  }
+  if(!n) return null;
+  return {
+    n,
+    mae:  Math.round(absSum/n*10)/10,
+    bias: Math.round(biasSum/n*10)/10,    // mean signed error: + runs wet, − runs dry
+    hit:  Math.round(hits/n*100),
+    miss: Mi, falarm: F,
+    // event-skill scores from the 2×2 contingency table (rain vs no-rain)
+    pod: (H+Mi>0)   ? Math.round(H/(H+Mi)*100)   : null,   // Probability of Detection
+    far: (H+F>0)    ? Math.round(F/(H+F)*100)    : null,   // False Alarm Ratio
+    csi: (H+Mi+F>0) ? Math.round(H/(H+Mi+F)*100) : null,   // Critical Success Index
+    rainDays: H+Mi
+  };
+}
+
+/* Scorecard for one farm.
+   Leaderboard rule: every ranked model is scored on the SAME days. A model is ranked
+   only if it has forecasts on ≥80% of the days the best-covered model has; days where
+   any ranked model is missing are dropped for everyone. Models below that coverage are
+   shown as "not ranked yet (n days)" rather than winning on a small, easy sample.
+   cmpN = number of shared scored days (drives the confidence pill). */
 function scoreLocation(locId, n){
   const recs = state.records[locId]||{};
   const days = dateRange(n);
-  const rows=[];
   const models = MODELS();
-  // per-model accumulators
-  const acc = {}; models.forEach(m=>acc[m.key]={
-    absSum:0, maeN:0, hits:0, hitN:0,
-    biasSum:0,            // Σ(forecast − actual): + = runs wet, − = runs dry
-    missRain:0,           // model said dry, it actually rained (dangerous)
-    falseAlarm:0,         // model said rain, it stayed dry (annoying)
-    rainHits:0            // model said rain AND it rained (for POD/FAR/CSI)
-  });
-  let anyCmp = 0;  // days where actual exists AND at least one model has a value
+  const rows=[];
+  const cover = {}; models.forEach(m=>cover[m.key]=0);   // days with actual + this model
 
   for(const day of days){
     const r = recs[day]||{};
-    const row = { day, actual:r.actual, vals:{}, errs:{}, hits:{} };
+    const row = { day, actual:r.actual, vals:{}, errs:{}, hits:{}, scored:false };
     let rowHasModel = false;
     for(const m of models){
       const v = r[m.key];
       row.vals[m.key] = v;
       if(v!=null) rowHasModel = true;
       if(r.actual!=null && v!=null){
-        const err = Math.round((v - r.actual)*10)/10;
-        row.errs[m.key] = err;
-        acc[m.key].absSum += Math.abs(v - r.actual); acc[m.key].maeN++;
-        acc[m.key].biasSum += (v - r.actual);
-        const fcWet = v>=DRY_THRESHOLD, actWet = r.actual>=DRY_THRESHOLD;
-        const hit = fcWet === actWet;
-        row.hits[m.key] = hit;
-        acc[m.key].hitN++; if(hit) acc[m.key].hits++;
-        if(actWet && fcWet) acc[m.key].rainHits++;   // correctly predicted a rain day
-        if(!hit){
-          if(actWet && !fcWet) acc[m.key].missRain++;     // rained but model said dry
-          else if(!actWet && fcWet) acc[m.key].falseAlarm++; // dry but model said rain
-        }
+        row.errs[m.key] = Math.round((v - r.actual)*10)/10;
+        row.hits[m.key] = (v>=DRY_THRESHOLD) === (r.actual>=DRY_THRESHOLD);
+        cover[m.key]++;
       }
     }
-    if(r.actual!=null && rowHasModel) anyCmp++;
     if(rowHasModel || r.actual!=null) rows.push(row);
   }
 
-  // build per-model measures (null if that model has no comparable days)
-  const mae={}, hit={}, bias={}, miss={}, falarm={}; let haveMae=false, haveHit=false;
-  const pod={}, far={}, csi={}, rainDays={};
-  for(const m of models){
-    const a=acc[m.key];
-    if(a.maeN){
-      mae[m.key]=Math.round(a.absSum/a.maeN*10)/10; haveMae=true;
-      bias[m.key]=Math.round(a.biasSum/a.maeN*10)/10;  // mean signed error
-    } else { mae[m.key]=null; bias[m.key]=null; }
-    if(a.hitN){
-      hit[m.key]=Math.round(a.hits/a.hitN*100); haveHit=true;
-      miss[m.key]=a.missRain; falarm[m.key]=a.falseAlarm;
-      // event-skill scores from the 2×2 contingency table (rain vs no-rain):
-      //   H=rainHits, M=missRain, F=falseAlarm
-      const H=a.rainHits, Mi=a.missRain, F=a.falseAlarm;
-      pod[m.key]  = (H+Mi>0) ? Math.round(H/(H+Mi)*100) : null;   // Probability of Detection
-      far[m.key]  = (H+F>0)  ? Math.round(F/(H+F)*100)  : null;   // False Alarm Ratio
-      csi[m.key]  = (H+Mi+F>0)? Math.round(H/(H+Mi+F)*100): null; // Critical Success Index
-      rainDays[m.key] = H+Mi;  // how many actual rain days there were to catch
-    } else { hit[m.key]=null; miss[m.key]=null; falarm[m.key]=null; pod[m.key]=null; far[m.key]=null; csi[m.key]=null; rainDays[m.key]=null; }
+  const maxCover = Math.max(0, ...models.map(m=>cover[m.key]));
+  const need = Math.max(1, Math.ceil(maxCover*MIN_COVER_FRAC));
+  let ranked = models.filter(m=>cover[m.key]>=need).map(m=>m.key);
+  // If the 80% rule would leave a single model "ranked" alone (e.g. IFS has a few older
+  // days the others lack), fall back to every model with data, on their shared days —
+  // a one-horse leaderboard would announce a winner with nothing compared.
+  if(ranked.length<2){
+    const withData = models.filter(m=>cover[m.key]>0).map(m=>m.key);
+    if(withData.length>=2) ranked = withData;
   }
+  const commonDays = maxCover ? days.filter(day=>{
+    const r = recs[day]; if(!r || r.actual==null) return false;
+    return ranked.every(k=>r[k]!=null);
+  }) : [];
+  const commonSet = new Set(commonDays);
+  rows.forEach(row=>{ row.scored = commonSet.has(row.day); });
+
+  const pick = ()=>{ const o={}; models.forEach(m=>o[m.key]=null); return o; };
+  const mae=pick(), hit=pick(), bias=pick(), miss=pick(), falarm=pick(),
+        pod=pick(), far=pick(), csi=pick(), rainDays=pick();
+  let have=false;
+  if(commonDays.length){
+    for(const k of ranked){
+      const s = metricsOn(recs, commonDays, k);
+      if(!s) continue;
+      have=true;
+      mae[k]=s.mae; bias[k]=s.bias; hit[k]=s.hit; miss[k]=s.miss; falarm[k]=s.falarm;
+      pod[k]=s.pod; far[k]=s.far; csi[k]=s.csi; rainDays[k]=s.rainDays;
+    }
+  }
+  const unranked = {};   // key → its own day count, for "not ranked yet" labels
+  models.forEach(m=>{ if(!ranked.includes(m.key)) unranked[m.key]=cover[m.key]; });
   return {
     rows,
-    mae: haveMae? mae : null,
-    hit: haveHit? hit : null,
-    bias: haveMae? bias : null,
-    miss: haveHit? miss : null,
-    falarm: haveHit? falarm : null,
-    pod: haveHit? pod : null,
-    far: haveHit? far : null,
-    csi: haveHit? csi : null,
-    rainDays: haveHit? rainDays : null,
-    cmpN: anyCmp
+    mae: have? mae : null, hit: have? hit : null, bias: have? bias : null,
+    miss: have? miss : null, falarm: have? falarm : null,
+    pod: have? pod : null, far: have? far : null, csi: have? csi : null,
+    rainDays: have? rainDays : null,
+    cmpN: commonDays.length,
+    cover, unranked, maxCover
   };
 }
 
@@ -1402,8 +1521,11 @@ function renderVerdict(){
   const sc=scoreLocation(activeLoc, range);
   if(!sc.mae){ mount.innerHTML=`<div class="card"><div class="empty">${t.noData}</div></div>`; return; }
 
-  const winMae = bestByMae(sc.mae);
-  const winHit = sc.hit? bestByHit(sc.hit) : null;
+  // Never name a winner unless at least two models were actually compared.
+  const compared = MODELS().filter(m=>sc.mae[m.key]!=null).length;
+  const canJudge = compared>=2 || MODELS().length===1;
+  const winMae = canJudge ? bestByMae(sc.mae) : null;
+  const winHit = (canJudge && sc.hit)? bestByHit(sc.hit) : null;
   // dense ranks: MAE lower-is-better, dry/wet higher-is-better
   const maeRank = rankBy(sc.mae, "asc");
   const hitRank = sc.hit ? rankBy(sc.hit, "desc") : {};
@@ -1436,6 +1558,7 @@ function renderVerdict(){
         ${maeWin?`<div class="crown">${t.winner}</div>`:''}
         <div class="mname" style="color:var(${m.cssVar})">${modelLabel(m.key)}</div>
         ${isBaseline?`<div class="basetag">${t.baseline}</div>`:'<div class="basetag">&nbsp;</div>'}
+        ${sc.unranked && sc.unranked[m.key]!=null?`<div class="subm unranked">${t.notRanked(sc.unranked[m.key], sc.maxCover)}</div>`:''}
         <div class="metric"><div class="mlabel">${t.mae} ${maeBadge}</div>
           <div class="mval">${maeVal}<span class="munit"> ${t.maeUnit}</span></div>
           ${biasLine}</div>
@@ -1451,7 +1574,8 @@ function renderVerdict(){
   const joinNames = (keys)=> keys.map(k=>`<b class="${cssClassFor(k)}">${modelLabel(k)}</b>`).join(t.listSep);
   // amount line
   let amtLine;
-  if(winMae.allLevel) amtLine = t.tieAmt;                       // genuinely all close
+  if(!winMae) amtLine = t.noOverlap;
+  else if(winMae.allLevel) amtLine = t.tieAmt;                       // genuinely all close
   else if(winMae.tie)  amtLine = t.coLeadAmt(joinNames(winMae.leaders));  // 2+ share the top
   else                 amtLine = t.bestAmt(W(winMae.key));      // single winner
   // dry/wet line
@@ -1538,9 +1662,11 @@ function buildShareText(loc, sc){
   }
   lines.push("");
   // verdict sentences (strip any HTML tags from the i18n strings)
-  const winMae = bestByMae(sc.mae);
-  const winHit = sc.hit? bestByHit(sc.hit) : null;
+  const canJudge = MODELS().filter(m=>sc.mae && sc.mae[m.key]!=null).length>=2 || MODELS().length===1;
+  const winMae = canJudge ? bestByMae(sc.mae) : null;
+  const winHit = (canJudge && sc.hit)? bestByHit(sc.hit) : null;
   const strip = s => s.replace(/<[^>]+>/g,"");
+  if(!canJudge) lines.push(strip(t.noOverlap));
   const plainNames = (keys)=> keys.map(k=>modelLabel(k)).join(t.listSep);
   if(winMae){
     if(winMae.allLevel) lines.push(strip(t.tieAmt));
@@ -1576,7 +1702,7 @@ function buildCSV(loc, n){
     "lead_time","ground_truth"
   ].join(","));
   const LEAD = "24h (precipitation_previous_day1)";
-  const GT = "ERA5 reanalysis (archive-api)";
+  const GT = REF_LABEL;
   const esc = s => {
     const v = String(s==null?"":s);
     return /[",\n]/.test(v) ? `"${v.replace(/"/g,'""')}"` : v;
@@ -1606,7 +1732,7 @@ function exportXLS(){
   const sc = scoreLocation(loc.id, range);
   const models = MODELS();
   const LEAD = "24h (precipitation_previous_day1)";
-  const GT = "ERA5 reanalysis (archive-api)";
+  const GT = REF_LABEL;
 
   // Sheet 1 — tidy long data, one row per (date × model)
   const header = ["location","latitude","longitude","date","model","model_api",
@@ -1629,6 +1755,7 @@ function exportXLS(){
       ]);
     }
   }
+  if(typeof XLSX==="undefined"){ setSyncStatus("exportErr"); return; }
   const ws = XLSX.utils.aoa_to_sheet(aoa);
   ws["!cols"] = [{wch:20},{wch:10},{wch:10},{wch:11},{wch:7},{wch:24},
     {wch:11},{wch:9},{wch:9},{wch:12},{wch:11},{wch:13},{wch:32},{wch:30}];
@@ -2024,6 +2151,7 @@ function hideToast(){ $("#toast").classList.remove("show"); }
 function saveLoc(){
   const name=$("#inName").value.trim(), lat=parseFloat($("#inLat").value), lon=parseFloat($("#inLon").value);
   if(!name||isNaN(lat)||isNaN(lon)){ setSyncStatus("needName"); return; }
+  if(lat<-90||lat>90||lon<-180||lon>180){ setSyncStatus("coordErr"); return; }
   if(editingId){
     const loc=state.locations.find(l=>l.id===editingId);
     if(loc){
@@ -2033,7 +2161,9 @@ function saveLoc(){
       // Within 1km the points share the same weather grid cell, so the existing
       // forecast/actual records stay valid and are kept. A larger move makes the
       // old history belong to a different place, so we reset it.
-      if(farMove) state.records[loc.id] = {};
+      // Clear the per-day fetch flags too — otherwise today's flags (earned at the OLD
+      // spot) make the next sync skip every source and the farm sits empty until tomorrow.
+      if(farMove){ state.records[loc.id] = {}; if(state.fetchedOn) delete state.fetchedOn[loc.id]; }
       save();
       closeForm(); renderAll();
       // Re-sync after any coordinate change (refreshes data; keeps records if near).
@@ -2126,7 +2256,11 @@ function renderSyncStatus(){
   else if(s==="needName") st.textContent=t.needName;
   else if(s==="gpsErr") st.textContent=t.gpsErr;
   else if(s==="gpsOk") st.textContent=t.gpsOk;
-  else if(s && s.synced!=null) st.textContent=t.synced(s.synced);
+  else if(s==="coordErr") st.textContent=t.coordErr;
+  else if(s==="exportErr") st.textContent=t.exportErr;
+  else if(s && s.synced!=null && s.failed && s.failed.length)
+    st.textContent=t.syncPartial(s.failed.map(k=>k==="__actual"?"ERA5":modelLabel(k)).join(t.listSep||", "), s.synced);
+  else if(s && s.synced!=null) st.textContent=t.synced(s.synced, s.last?shortDate(s.last):null);
   else st.textContent="";
 }
 function setSyncStatus(s){ lastSyncState=s; renderSyncStatus(); }
@@ -2137,9 +2271,10 @@ async function doSync(force){
   if(!loc || loc.deleted) return;
   setSyncStatus("syncing");
   try{
-    await syncLocation(loc, range, null, force);
+    const rep = await syncLocation(loc, range, null, force);
+    if(rep && rep.stale) return;               // farm moved mid-sync; the new sync reports
     const sc=scoreLocation(activeLoc, range);
-    setSyncStatus({synced:sc.cmpN});
+    setSyncStatus({synced:sc.cmpN, last:rep&&rep.lastActual, failed:rep?rep.failed:[]});
     renderVerdict(); renderCharts(); renderTable();
   }catch(e){ setSyncStatus("syncErr"); }
 }
@@ -2166,7 +2301,7 @@ async function refreshRegion(region){
   const setProg=()=>{ if(btn) btn.textContent=`${done}/${farms.length}`; };
   setProg();
   for(const loc of farms){
-    try{ await syncLocation(loc, range, null, false); }
+    try{ const rep = await syncLocation(loc, range, null, false); if(!rep || !rep.ok) failed++; }
     catch(e){ failed++; }
     done++; setProg();
   }
@@ -2174,7 +2309,7 @@ async function refreshRegion(region){
   // if the active farm was in this region, refresh its scorecard
   if(farms.some(l=>l.id===activeLoc)){
     const sc=scoreLocation(activeLoc, range);
-    setSyncStatus({synced:sc.cmpN});
+    setSyncStatus({synced:sc.cmpN, last:lastActualDay(activeLoc)});
     renderVerdict(); renderCharts(); renderTable();
   }
   renderLocList();
@@ -2197,37 +2332,41 @@ const BEATS_MAE_MARGIN = 0.5;  // mm/day — must beat IFS by at least this on a
 const BEATS_HIT_MARGIN = 5;    // percentage points — and by at least this on dry/wet
 const WATCH_MIN_DAYS = 8;      // below this we don't even tentatively flag it
 
+/* Each challenger is compared with IFS on PAIRED days only — days where the challenger,
+   IFS and the ERA5 actual all exist — and the confidence floor applies to that paired
+   count. (Previously each model used its own days while confidence used a shared count,
+   so a model with 1 day could be "confident" against IFS's 20.) Always uses the full
+   30-day window, independent of the 7/14/30 view selector, so the ≥20-day bar is
+   reachable whatever range is on screen. */
 function analyzeFarmVsIFS(locId){
-  const sc = scoreLocation(locId, range);
-  if(!sc.mae || sc.mae.ifs==null) return { status:"nodata", cmpN:sc.cmpN };
+  const recs = state.records[locId]||{};
+  const days = dateRange(SCORE_WINDOW);
   const challengers = MODELS().filter(m=>m.key!=="ifs");
-  let best=null;
+  if(!MODELS().some(m=>m.key==="ifs")) return { status:"nodata", cmpN:0 };
+  const tier = (n,dMae,dHit)=>
+    (n>=BEATS_MIN_DAYS && dMae>=BEATS_MAE_MARGIN && dHit>=BEATS_HIT_MARGIN) ? 3 :
+    (n>=WATCH_MIN_DAYS) ? 2 : 1;
+  let best=null, maxPaired=0;
   for(const m of challengers){
-    const dMae = (sc.mae[m.key]!=null) ? (sc.mae.ifs - sc.mae[m.key]) : null;   // + = better than IFS
-    const dHit = (sc.hit && sc.hit[m.key]!=null && sc.hit.ifs!=null) ? (sc.hit[m.key] - sc.hit.ifs) : null;
-    if(dMae==null || dHit==null) continue;
-    // a "beat" requires winning on BOTH metrics (not just one)
-    const beatsBoth = dMae>0 && dHit>0;
-    if(!beatsBoth) continue;
-    // score the strength of the beat by how far past the margins it goes
+    const paired = days.filter(d=>{ const r=recs[d]; return r && r.actual!=null && r.ifs!=null && r[m.key]!=null; });
+    if(paired.length>maxPaired) maxPaired=paired.length;
+    if(!paired.length) continue;
+    const s = metricsOn(recs, paired, m.key), si = metricsOn(recs, paired, "ifs");
+    const dMae = Math.round((si.mae - s.mae)*10)/10;   // + = better than IFS
+    const dHit = s.hit - si.hit;
+    if(!(dMae>0 && dHit>0)) continue;                  // a "beat" needs BOTH metrics
     const strength = Math.min(dMae/BEATS_MAE_MARGIN, dHit/BEATS_HIT_MARGIN);
-    if(!best || strength>best.strength) best={ key:m.key, dMae, dHit, strength };
+    const cand = { key:m.key, dMae, dHit, strength, cmpN:paired.length,
+      tier: tier(paired.length, dMae, dHit),
+      pod:s.pod, podIfs:si.pod, far:s.far, farIfs:si.far, csi:s.csi, csiIfs:si.csi,
+      rainDays:s.rainDays };
+    // a confident beat outranks a stronger-looking but thinner one
+    if(!best || cand.tier>best.tier || (cand.tier===best.tier && cand.strength>best.strength)) best=cand;
   }
-  if(!best) return { status:"ifs_best", cmpN:sc.cmpN };  // IFS not beaten on both metrics
-  // attach the plain-language event-skill numbers for the winning model vs IFS
-  const k=best.key;
-  best.pod = sc.pod ? sc.pod[k] : null;
-  best.podIfs = sc.pod ? sc.pod.ifs : null;
-  best.far = sc.far ? sc.far[k] : null;
-  best.farIfs = sc.far ? sc.far.ifs : null;
-  best.csi = sc.csi ? sc.csi[k] : null;
-  best.csiIfs = sc.csi ? sc.csi.ifs : null;
-  best.rainDays = sc.rainDays ? sc.rainDays[k] : null;
-  const confident = sc.cmpN>=BEATS_MIN_DAYS &&
-                    best.dMae>=BEATS_MAE_MARGIN && best.dHit>=BEATS_HIT_MARGIN;
-  if(confident) return { status:"confident", cmpN:sc.cmpN, ...best };
-  if(sc.cmpN>=WATCH_MIN_DAYS) return { status:"watch", cmpN:sc.cmpN, ...best };
-  return { status:"thin", cmpN:sc.cmpN, ...best };  // a lead exists but sample too small
+  if(!maxPaired) return { status:"nodata", cmpN:0 };
+  if(!best) return { status:"ifs_best", cmpN:maxPaired };   // IFS not beaten on both metrics
+  const status = best.tier===3 ? "confident" : best.tier===2 ? "watch" : "thin";
+  return { status, ...best };
 }
 
 function analyzeAllFarms(){
@@ -2455,10 +2594,10 @@ async function fetchAllSlowly(){
     if(isFarmDoneToday(loc)){ skipped++; processed++; setBadge(); continue; }
     if(doName) doName.textContent=(loc.name||"");   // show which orchard is fetching now
     try{
-      await syncLocation(loc, range, null, false);
-      // honest count: only "done" if the farm actually has records now
-      const r = state.records[loc.id];
-      if(r && Object.keys(r).length>0) done++; else failed++;
+      const rep = await syncLocation(loc, range, null, false);
+      // honest count: "done" only if every due source answered with full coverage —
+      // old records already on the phone do not count as a successful fetch
+      if(rep && rep.ok) done++; else if(!(rep && rep.aborted)) failed++;
     }catch(e){ failed++; }
     processed++;                                     // advance on success AND failure
     setBadge();
@@ -2466,7 +2605,7 @@ async function fetchAllSlowly(){
     if(!wake) await acquireWake();
     // refresh the active farm's scorecard live if it was just fetched
     if(loc.id===activeLoc){
-      try{ const sc=scoreLocation(activeLoc,range); setSyncStatus({synced:sc.cmpN}); renderVerdict(); renderCharts(); renderTable(); }catch(_){}
+      try{ const sc=scoreLocation(activeLoc,range); setSyncStatus({synced:sc.cmpN, last:lastActualDay(activeLoc)}); renderVerdict(); renderCharts(); renderTable(); }catch(_){}
     }
     if(driveAbort) break;
     await driveSleep(DRIVE_GAP_MS);                  // interruptible: a stop-tap resolves it early
@@ -2538,6 +2677,7 @@ $("#rangeSeg").addEventListener("click",e=>{
 /* ---------- boot: render, then log-on-open auto-sync of active location ---------- */
 renderAll();
 initLocMaster();          // set up the master location-manager collapse (collapsed by default once seeds exist)
+if(REF_MIGRATED) showToast(T().refMigrated);   // one-time: tell the user why scores changed
 if(activeLoc) doSync();   // log-on-open + gap-fill happens here every launch
 
 if("serviceWorker" in navigator){
