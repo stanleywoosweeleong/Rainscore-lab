@@ -2,7 +2,7 @@
    Rule #1: API requests (Open-Meteo) must pass through untouched — bare return,
    never respondWith(JSON). We only cache the app shell. */
 const CACHE_PREFIX = "rainscore-lab-";
-const CACHE = CACHE_PREFIX + "20260927-46";
+const CACHE = CACHE_PREFIX + "20260928-47";
 const SHELL = ["./", "./index.html", "./manifest.json", "./xlsx_full_min.js"];
 
 self.addEventListener("install", e=>{
@@ -23,6 +23,18 @@ self.addEventListener("fetch", e=>{
   // Never intercept the weather APIs — let the network handle them (and retry logic in app).
   if(url.origin !== self.location.origin) return;          // rule #1: bare return
   if(e.request.method !== "GET") return;
+  // Daily data file (written by the GitHub Action): ALWAYS network-first. Cache-first
+  // would serve yesterday's file forever. Offline, fall back to the last copy — the app
+  // shows its age ("Auto-collected …" / "⚠ … days old"), so it is never silently stale.
+  if(url.pathname.includes("/data/") && url.pathname.endsWith(".json")){
+    e.respondWith(
+      fetch(e.request, {cache:"no-store"}).then(res=>{
+        if(res && res.ok){ const copy=res.clone(); caches.open(CACHE).then(c=>c.put(e.request, copy)); }
+        return res;
+      }).catch(()=>caches.match(e.request).then(hit=> hit || new Response("{}",{status:503})))
+    );
+    return;
+  }
   // App shell: cache-first, fall back to network, update cache on success.
   e.respondWith(
     caches.match(e.request).then(hit=>{

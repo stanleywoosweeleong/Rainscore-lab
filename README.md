@@ -38,3 +38,22 @@ with `models=era5` (the archive default "Best Match" is IFS analysis for recent 
 which would score IFS against itself). Only complete 24-hour local days are scored.
 The SheetJS file is `xlsx_full_min.js` — keep that exact name (index.html and sw.js
 both reference it).
+
+## Daily auto-collection (GitHub Action)
+`.github/workflows/rainscore-collect.yml` runs `tools/collect.mjs` every day at
+04:11 Malaysia time. It fetches all six models + ERA5 for every seed orchard (the
+same data and the same complete-day rule as the app) and commits
+`data/rainscore-data.json`. The app loads that file on open, so results are ready
+without fetching; manual update and drive mode still work and only fetch what the
+file doesn't cover (e.g. orchards added on the phone).
+
+Setup, once:
+1. Push this repo (including the hidden `.github` folder).
+2. Repo → Settings → Actions → General → Workflow permissions → **Read and write**.
+3. Actions tab → "RainScore daily data" → **Run workflow** (creates the first data file;
+   until then the app shows "⚠ Couldn't load auto data" and works by hand as before).
+
+- Extra orchards for the daily run: `data/extra-farms.json` as `[["Name", lat, lon, "Region"], ...]`.
+- If more than 10% of orchards fail, the run still saves what worked, then fails so
+  GitHub emails you. The app also warns when the file is over 30 hours old.
+- The file keeps 45 days; git history of it is the permanent archive.

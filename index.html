@@ -222,6 +222,9 @@ input:focus,select:focus{outline:2px solid var(--rain);outline-offset:0}
 .conf-high{background:rgba(123,216,143,.18);color:#7bd88f}
 /* sub-metrics under each value */
 .subm{margin-top:3px;font-size:10px;line-height:1.3}
+.server-note,.srv-note{font-size:14px;font-weight:600;color:var(--ink);margin-top:8px;line-height:1.4}
+.server-note.warn,.srv-note.warn{color:#f0b429}
+.srv-note{margin:-6px 0 12px}
 .subm.unranked{font-size:13px;font-weight:600;color:var(--ink)}
 .bias.wet{color:#6db3f0} .bias.dry{color:#e3a857} .bias.zero{color:var(--ink2)}
 .errsplit{display:flex;flex-direction:column;gap:1px;align-items:center}
@@ -504,6 +507,7 @@ footer{text-align:center;padding:18px 10px 8px;font-size:11px;color:var(--ink2)}
     <button class="btn btn-primary" id="btnSync" type="button">🔄 <span id="t_sync">Update records</span></button>
     <button class="btn btn-ghost" id="btnExport" type="button" style="margin-top:8px">⬇ <span id="t_export">Export Excel (raw data)</span></button>
     <div class="status" id="syncStatus"></div>
+    <div class="server-note" id="serverNote" style="display:none"></div>
     <div class="banner info" id="howNote" style="margin-top:12px"></div>
   </div>
 
@@ -526,7 +530,7 @@ footer{text-align:center;padding:18px 10px 8px;font-size:11px;color:var(--ink2)}
 
 const TZ = "Asia/Kuching";
 const STORE_KEY = "rainscore_lab_v1";
-const CACHE_TAG = "rainscore-lab-20260927-46";
+const CACHE_TAG = "rainscore-lab-20260928-47";
 const DRY_THRESHOLD = 1.0;   // mm — <1mm counts as a "dry day" (field-adjustable)
 const PREV_HOST = "https://previous-runs-api.open-meteo.com/v1/forecast";
 const ARCH_HOST = "https://archive-api.open-meteo.com/v1/archive";
@@ -587,7 +591,7 @@ const I18N = {
     langBtn:"中",
     emptyLoc:"点右上角 ＋ 新增第一个果园地点", emptyLocBig:"📍", filterPlaceholder:"搜索果园名…", noMatch:"没有符合的果园", ungrouped:"其他", updateRegion:"更新此区所有果园", regionDone:(n)=>`已更新 ${n} 个果园`, regionDonePartial:(ok,n)=>`已更新 ${ok}/${n} 个（部分失败，可重试）`, driveTitle:"开车模式：慢慢抓取全部果园", driveProg:"抓取进度", driveDoneShort:"✓ 完成", driveNone:"还没有果园可抓取", driveStart:(n)=>`开车模式：开始慢慢抓取 ${n} 个果园，可关屏但请别关软件`, driveDone:(n,sk)=>sk?`全部 ${n} 个已就绪（其中 ${sk} 个今天已抓取）`:`全部 ${n} 个果园已抓取完成 ✓`, driveDonePartial:(ok,n)=>`已抓取 ${ok}/${n} 个（部分失败，再按一次补抓）`, driveStopped:(d,n)=>`已停止（完成 ${d}/${n}，再按继续）`, resTitle:"哪个模式赢 IFS？", resIntro:"对比每个果园：有没有别的模式在「雨量」和「晴雨判断」上都赢过你目前广播用的 ECMWF IFS 9km。下面「可信」一栏要求样本够多（≥20 天）且赢得够明显，才会列入——可作为该地区换模式的参考。", resConfidentH:"可信：某模式稳定赢 IFS", resWatchH:"值得观察（样本或幅度还不够）", resBeatsAt:(n)=>`在 ${n} 个果园赢 IFS`, resBeatLine:(name,mae,hit)=>`${name}：雨量准 ${mae}mm，晴雨高 ${hit}%`, resNeedMore:"需更多天", resNoneConfident:"目前还没有任何模式稳定赢过 IFS——继续累积数据。", resNoneWatch:"暂无观察名单。", resIfsBest:"IFS 仍最佳", resThin:"样本太少", resNoData:"暂无数据", resCaveat:"⚠ 仅供参考。热带骤雨变化大，换模式前请用更长时间、并结合地面雨量筒验证。", resTitleBtn:"结果：哪个模式赢 IFS", resStatusEmpty:"<b>还没有可比对的数据。</b>先用 🚗 开车模式抓取各果园，或打开某个果园按「更新记录」。实际雨量（ERA5）约延迟 5 天，所以最近几天要过几天才有分数。", resStatusBuilding:(w,tot,mx,need)=>`<b>数据正在累积中，这很正常。</b>目前 ${tot} 个果园里有 ${w} 个开始有分数，最多的一个累积了 <b>${mx}/${need} 天</b>。<br>还没有任何结论——样本太少时排名会乱跳，<b>千万别凭几天数据就换模式</b>。<br>👉 每天用（或每天开车模式抓一次），约 <b>3–4 周</b>后果园陆续满 20 天，真正稳定赢 IFS 的模式就会出现在上面。`, resStatusIfsHolds:"<b>已有足够数据的果园里，目前 IFS 仍然最稳。</b>这本身就是有用的结论——代表你现在广播用的模式没问题。继续累积，若某地区有模式后来居上，会自动列到上面。", resStatusHasWinners:(n)=>`<b>已找到 ${n} 个果园有模式稳定赢过 IFS。</b>见下方「可信」名单。换模式前，仍建议再观察一段时间并结合地面雨量筒。`, resPOD:"接住雨", resFAR:"空报", resCSI:"综合", resDecideH:"该不该换模式？看三件事", resQ1:"它接得住该下的雨吗？", resQ1sub:"「接住雨」＝该下雨的日子里，它预报对了几成（越高越好）。漏掉大雨最伤果园。（POD 命中率）", resQ2:"它会不会常常空报？", resQ2sub:"「空报」＝它说会下、结果没下的比例（越低越好）。常空报会让你白忙。（FAR 误报率）", resQ3:"综合表现比 IFS 好吗？", resQ3sub:"「综合」＝把接住雨和空报合起来的总分（越高越好）。这一个数最能代表整体（CSI 综合指数）。", resDecideRule:"👉 只有当某模式「接住雨」更高、「空报」更低、「综合」也更高，而且累积了 20 天以上，才值得考虑在这个地区换用它。任何一项不如 IFS，就先别换。",
     pickLoc:"选择上方地点查看记分", noData:"尚无记录，点「更新记录」",
-    how:"每次打开会记录各模型对「今天」的雨量预报，并用最近 7 天的存档自动补回遗漏的日子。实际雨量用 ERA5 再分析回填（约延迟 5 天）。",
+    how:"每天清晨约 4 点，系统会自动抓取所有预载果园的数据；打开软件时先载入这份数据，所以通常不用等。自己新增的果园或自动抓取漏掉的，仍会在打开时、按「更新记录」或开车模式时补抓。实际雨量用 ERA5 再分析（约延迟 6 天）。",
     mae:"平均误差", maeUnit:"毫米/天", hit:"晴雨命中", hitUnit:"准确率",
     days:"天", winner:"最准", tie:"打平", baseline:"目前预报模式",
     bestAmt:(w)=>`雨量上，<b class="${w.cls}">${w.name}</b> 这个月最接近实际。`,
@@ -606,6 +610,10 @@ const I18N = {
     syncing:"更新中…", synced:(n,last)=>`已更新 · ${n} 天可比对${last?` · 实际雨量到 ${last}`:""}`,
     syncPartial:(names,n)=>`⚠ 部分未更新：${names}（已保留旧数据，稍后再按一次）· ${n} 天可比对`,
     notRanked:(n,mx)=>`仅 ${n}/${mx} 天 · 暂不排名`,
+    srvOk:(day,hm,n)=>`🤖 自动数据：${day} ${hm} 已更新（${n} 个果园）`, srvToday:"今天",
+    srvStale:(d)=>`⚠ 自动数据已 ${d} 天没更新——每日自动抓取可能停了，可手动更新或用开车模式`,
+    srvErr:"⚠ 读不到自动数据（离线或文件不存在）——照常手动更新",
+    srvVersion:"⚠ 自动数据版本不符，已忽略——照常手动更新",
     dataReset:"已全部清零重新开始：旧记录已删除（果园名单保留），现在只用修正后的数据重新累积。",
     noOverlap:"各模式还没有足够的共同日子，暂时不判输赢——继续累积数据。",
     refMigrated:"实际雨量已改用真正的 ERA5（旧数据混有 IFS 分析），正在重新计分…",
@@ -665,7 +673,7 @@ const I18N = {
     langBtn:"EN",
     emptyLoc:"Tap ＋ (top right) to add your first orchard", emptyLocBig:"📍", filterPlaceholder:"Search orchards…", noMatch:"No matching orchards", ungrouped:"Other", updateRegion:"Update all orchards in this region", regionDone:(n)=>`Updated ${n} orchards`, regionDonePartial:(ok,n)=>`Updated ${ok}/${n} (some failed, try again)`, driveTitle:"Drive mode: fetch all orchards slowly", driveProg:"Fetching", driveDoneShort:"✓ Done", driveNone:"No orchards to fetch yet", driveStart:(n)=>`Drive mode: gathering ${n} orchards slowly. Screen can sleep, but keep the app open.`, driveDone:(n,sk)=>sk?`All ${n} ready (${sk} were already done today)`:`All ${n} orchards fetched ✓`, driveDonePartial:(ok,n)=>`Fetched ${ok}/${n} (some failed — tap again to finish)`, driveStopped:(d,n)=>`Stopped (${d}/${n} done — tap to resume)`, resTitle:"Which model beats IFS?", resIntro:"For each orchard: does another model beat your broadcast baseline ECMWF IFS 9km on BOTH rainfall amount and dry/wet calls? The \"Confident\" list below only includes farms with enough days (≥20) and a clear margin — a fair basis for considering a model switch in that region.", resConfidentH:"Confident: a model reliably beats IFS", resWatchH:"Worth watching (sample or margin still thin)", resBeatsAt:(n)=>`beats IFS at ${n} ${n===1?"orchard":"orchards"}`, resBeatLine:(name,mae,hit)=>`${name}: ${mae}mm better amount, +${hit}% dry/wet`, resNeedMore:"need more days", resNoneConfident:"No model reliably beats IFS yet — keep gathering data.", resNoneWatch:"Nothing on the watch list yet.", resIfsBest:"IFS still best", resThin:"Too few days", resNoData:"No data yet", resCaveat:"⚠ Indicative only. Tropical downpours are erratic — confirm over a longer period and against your ground rain gauge before switching models.", resTitleBtn:"Results: where a model beats IFS", resStatusEmpty:"<b>No comparison data yet.</b> Use 🚗 drive mode to gather orchards, or open an orchard and tap \"Update records\". Actual rain (ERA5) lags ~5 days, so the most recent days only get scored a few days later.", resStatusBuilding:(w,tot,mx,need)=>`<b>Data is still building — this is normal.</b> ${w} of ${tot} orchards have started scoring, and the furthest along has <b>${mx}/${need} days</b>.<br>No conclusions yet — rankings swing wildly with few days, so <b>never switch models on a handful of days</b>.<br>👉 Use it daily (or run drive-mode once a day) and in about <b>3–4 weeks</b> orchards cross 20 days, at which point any model that genuinely beats IFS appears above.`, resStatusIfsHolds:"<b>Among orchards with enough data, IFS is still the steadiest so far.</b> That's a useful finding in itself — it means your current broadcast model is holding up. Keep gathering; if a model overtakes it in some region, it'll appear above automatically.", resStatusHasWinners:(n)=>`<b>Found ${n} orchard(s) where a model reliably beats IFS.</b> See the \"Confident\" list below. Even so, watch a while longer and check against your ground rain gauge before switching.`, resPOD:"Catches rain", resFAR:"False alarms", resCSI:"Overall", resDecideH:"Should you switch? Look at three things", resQ1:"Does it catch the rain that matters?", resQ1sub:"\"Catches rain\" = of the days it actually rained, how many it predicted (higher is better). Missing a big downpour hurts most. (POD)", resQ2:"Does it cry wolf too often?", resQ2sub:"\"False alarms\" = of the days it predicted rain, how many stayed dry (lower is better). Frequent false alarms waste your planning. (FAR)", resQ3:"Is it better overall than IFS?", resQ3sub:"\"Overall\" = catches-rain and false-alarms combined into one score (higher is better). This single number best sums it up. (CSI)", resDecideRule:"👉 Only worth switching a region to a model when it catches more rain, has fewer false alarms, AND scores higher overall than IFS — over 20+ days. If it loses on any one of these, keep IFS for now.",
     pickLoc:"Pick a location above to see its scorecard", noData:"No records yet — tap Update records",
-    how:"Each time you open the app it logs what every model forecast for today, and back-fills any missed days from the last 7 days of archive. Actual rain is filled from ERA5 reanalysis (about 5 days behind).",
+    how:"Every morning around 4 am, all preloaded orchards are collected automatically; the app loads that data first when it opens, so there is usually no wait. Orchards you added yourself, or anything the daily run missed, are still fetched on open, with \"Update records\", or in drive mode. Actual rain is ERA5 reanalysis (about 6 days behind).",
     mae:"Avg miss", maeUnit:"mm/day", hit:"Dry/wet calls", hitUnit:"correct",
     days:"days", winner:"best", tie:"tie", baseline:"broadcast now",
     bestAmt:(w)=>`On rain amount, <b class="${w.cls}">${w.name}</b> was closest this month.`,
@@ -684,6 +692,10 @@ const I18N = {
     syncing:"Updating…", synced:(n,last)=>`Updated · ${n} comparable day${n===1?"":"s"}${last?` · actual rain to ${last}`:""}`,
     syncPartial:(names,n)=>`⚠ Not all updated: ${names} (older data kept — try again shortly) · ${n} comparable day${n===1?"":"s"}`,
     notRanked:(n,mx)=>`only ${n}/${mx} days · not ranked yet`,
+    srvOk:(day,hm,n)=>`🤖 Auto-collected ${day} ${hm} (${n} orchards)`, srvToday:"today",
+    srvStale:(d)=>`⚠ Auto data is ${d} day(s) old — the daily job may have stopped; update by hand or use drive mode`,
+    srvErr:"⚠ Couldn't load auto data (offline or file missing) — update by hand as usual",
+    srvVersion:"⚠ Auto data is from an incompatible version and was ignored — update by hand as usual",
     dataReset:"Clean sheet: all old records cleared (orchard list kept) — scores now rebuild from corrected data only.",
     noOverlap:"The models don't share enough days yet, so no winner is named — keep gathering data.",
     refMigrated:"Actual rain now uses true ERA5 (old values were mixed with IFS analysis) — re-scoring…",
@@ -1388,7 +1400,7 @@ function applyStaticText(){
   $("#t_data").textContent=t.data; $("#t_sync").textContent=t.sync;
   const ex=$("#t_export"); if(ex) ex.textContent=t.exportCsv;
   $("#howNote").textContent=t.how;
-  renderSyncStatus();
+  renderSyncStatus(); renderServerNote();
   document.documentElement.lang = LANG==="zh"?"zh":"en";
 }
 function activeLocs(){ return state.locations.filter(l=>!l.deleted); }
@@ -2282,6 +2294,11 @@ function renderSyncStatus(){
   else st.textContent="";
 }
 function setSyncStatus(s){ lastSyncState=s; renderSyncStatus(); }
+function renderServerNote(){
+  const el=$("#serverNote"); if(!el) return;
+  const txt=serverNote(); el.textContent=txt; el.style.display=txt?"block":"none";
+  el.classList.toggle("warn", !!SERVER_INFO && SERVER_INFO.status!=="ok" || /⚠/.test(txt));
+}
 
 async function doSync(force){
   if(!activeLoc) return;
@@ -2293,6 +2310,7 @@ async function doSync(force){
     if(rep && rep.stale) return;               // farm moved mid-sync; the new sync reports
     const sc=scoreLocation(activeLoc, range);
     setSyncStatus({synced:sc.cmpN, last:rep&&rep.lastActual, failed:rep?rep.failed:[]});
+    renderServerNote();
     renderVerdict(); renderCharts(); renderTable();
   }catch(e){ setSyncStatus("syncErr"); }
 }
@@ -2515,6 +2533,7 @@ function openResults(){
       </div>
       <div class="res-body">
         <div class="res-intro">${t.resIntro}</div>
+        ${serverNote()?`<div class="srv-note ${/⚠/.test(serverNote())?"warn":""}">${esc(serverNote())}</div>`:""}
         ${bannerHTML}
         <div class="res-section-h res-h-win">✅ ${t.resConfidentH} <span class="res-count">${counts}</span></div>
         <div class="res-section">${confidentHTML}</div>
@@ -2538,6 +2557,76 @@ function openResults(){
   document.getElementById("resClose").addEventListener("click", closeResults);
 }
 function closeResults(){ const o=document.getElementById("resultsOv"); if(o) o.remove(); }
+
+/* ---------- Server data: collected daily by the GitHub Action ----------
+   .github/workflows/rainscore-collect.yml runs tools/collect.mjs every morning (~04:11
+   MYT) and commits data/rainscore-data.json: the same forecasts + ERA5 actuals the app
+   fetches by hand, same complete-day rule. On open we merge it in, so every seed orchard
+   (and the 🏆 results card) is ready without waiting. Orchards are matched by
+   coordinates (ids differ per device). Forecasts only FILL gaps (first capture wins);
+   ERA5 actuals are the same source, so they overwrite. Fetch flags are set only for
+   sources the server actually got TODAY — anything it missed, and any orchard it doesn't
+   know (user-added), is still fetched by hand exactly as before. */
+const SERVER_DATA_URL = "data/rainscore-data.json";
+const SERVER_STALE_H = 30;     // older than this = the daily job has missed a run → warn
+let SERVER_INFO = null;        // null | {status:"ok"|"err"|"version"|"file", at, farms, matched}
+const farmKey = (lat, lon) => `${(+lat).toFixed(4)},${(+lon).toFixed(4)}`;
+async function loadServerData(){
+  if(location.protocol==="file:"){ SERVER_INFO={status:"file"}; return; }   // local testing: manual only
+  let d;
+  try{
+    const ctl = new AbortController(); const tm = setTimeout(()=>ctl.abort(), 10000);
+    const r = await fetch(SERVER_DATA_URL, { cache:"no-store", signal:ctl.signal });
+    clearTimeout(tm);
+    if(!r.ok) throw new Error("HTTP "+r.status);
+    d = await r.json();
+  }catch(e){ SERVER_INFO={status:"err"}; return; }
+  if(!d || d.refVersion!==REF_VERSION || !d.farms){ SERVER_INFO={status:"version"}; return; }
+  SERVER_INFO = mergeServerData(d);
+}
+function mergeServerData(d){
+  const today = todayYMD(), keys = new Set(MODEL_POOL.map(m=>m.key));
+  const fc = (state.fetchedOn = state.fetchedOn || {});
+  let matched = 0;
+  for(const loc of state.locations){
+    const sf = d.farms[farmKey(loc.lat, loc.lon)];
+    if(!sf) continue;
+    if(Object.keys(sf.f||{}).length || Object.keys(sf.a||{}).length) matched++;
+    const recs = state.records[loc.id] || (state.records[loc.id] = {});
+    for(const day in (sf.f||{})){
+      for(const k in sf.f[day]){
+        const v = sf.f[day][k];
+        if(!keys.has(k) || typeof v!=="number" || !isFinite(v) || v<0) continue;
+        recs[day] = recs[day] || {};
+        if(recs[day][k]==null) recs[day][k] = v;
+      }
+    }
+    for(const day in (sf.a||{})){
+      const v = sf.a[day];
+      if(typeof v!=="number" || !isFinite(v) || v<0) continue;
+      (recs[day] = recs[day] || {}).actual = v;
+    }
+    // Only today's successful sources count as "already fetched today".
+    const locFc = (fc[loc.id] = fc[loc.id] || {});
+    for(const k in (sf.ok||{})) if(sf.ok[k]===today && d.today===today) locFc[k] = today;
+  }
+  save();
+  return { status:"ok", at:d.generatedAt, farms:Object.keys(d.farms).length, matched, failed:d.failed||0 };
+}
+/* Plain-language line about the server data's age — shown under the sync status and in
+   the results card, so a stalled daily job is visible instead of silently stale. */
+function serverNote(){
+  const t=T(), s=SERVER_INFO;
+  if(!s || s.status==="file") return "";
+  if(s.status==="err") return t.srvErr;
+  if(s.status==="version") return t.srvVersion;
+  const at = new Date(s.at), ageH = (Date.now()-at.getTime())/3600000;
+  if(!isFinite(ageH)) return t.srvErr;
+  if(ageH > SERVER_STALE_H) return t.srvStale(Math.max(1, Math.round(ageH/24)));
+  const hm = new Intl.DateTimeFormat("en-GB",{timeZone:TZ,hour:"2-digit",minute:"2-digit"}).format(at);
+  const day = ymd(at)===todayYMD() ? t.srvToday : shortDate(ymd(at));
+  return t.srvOk(day, hm, s.matched);
+}
 
 /* ---------- Drive mode: fetch every orchard, slowly ----------
    Tap before leaving for the orchard; by the time you arrive all farms are gathered.
@@ -2697,7 +2786,15 @@ renderAll();
 initLocMaster();          // set up the master location-manager collapse (collapsed by default once seeds exist)
 if(DATA_RESET) showToast(T().dataReset);           // one-time clean sheet notice
 else if(REF_MIGRATED) showToast(T().refMigrated);   // one-time: tell the user why scores changed
-if(activeLoc) doSync();   // log-on-open + gap-fill happens here every launch
+// Server data first (fast, one file), then the usual log-on-open sync — which now skips
+// every source the daily job already fetched today, so it is usually instant.
+(async()=>{
+  setSyncStatus("syncing");
+  await loadServerData();
+  renderVerdict(); renderCharts(); renderTable();
+  if(activeLoc) await doSync();
+  else setSyncStatus(null);
+})();
 
 if("serviceWorker" in navigator){
   navigator.serviceWorker.register("sw.js").catch(()=>{});
