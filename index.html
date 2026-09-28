@@ -225,6 +225,7 @@ input:focus,select:focus{outline:2px solid var(--rain);outline-offset:0}
 .server-note,.srv-note{font-size:14px;font-weight:600;color:var(--ink);margin-top:8px;line-height:1.4}
 .server-note.warn,.srv-note.warn{color:#f0b429}
 .srv-note{margin:-6px 0 12px}
+.res-export{margin:0 0 14px}
 .subm.unranked{font-size:13px;font-weight:600;color:var(--ink)}
 .bias.wet{color:#6db3f0} .bias.dry{color:#e3a857} .bias.zero{color:var(--ink2)}
 .errsplit{display:flex;flex-direction:column;gap:1px;align-items:center}
@@ -530,7 +531,7 @@ footer{text-align:center;padding:18px 10px 8px;font-size:11px;color:var(--ink2)}
 
 const TZ = "Asia/Kuching";
 const STORE_KEY = "rainscore_lab_v1";
-const CACHE_TAG = "rainscore-lab-20260928-47";
+const CACHE_TAG = "rainscore-lab-20260928-49";
 const DRY_THRESHOLD = 1.0;   // mm — <1mm counts as a "dry day" (field-adjustable)
 const PREV_HOST = "https://previous-runs-api.open-meteo.com/v1/forecast";
 const ARCH_HOST = "https://archive-api.open-meteo.com/v1/archive";
@@ -610,6 +611,7 @@ const I18N = {
     syncing:"更新中…", synced:(n,last)=>`已更新 · ${n} 天可比对${last?` · 实际雨量到 ${last}`:""}`,
     syncPartial:(names,n)=>`⚠ 部分未更新：${names}（已保留旧数据，稍后再按一次）· ${n} 天可比对`,
     notRanked:(n,mx)=>`仅 ${n}/${mx} 天 · 暂不排名`,
+    resExport:"导出结果 Excel",
     srvOk:(day,hm,n)=>`🤖 自动数据：${day} ${hm} 已更新（${n} 个果园）`, srvToday:"今天",
     srvStale:(d)=>`⚠ 自动数据已 ${d} 天没更新——每日自动抓取可能停了，可手动更新或用开车模式`,
     srvErr:"⚠ 读不到自动数据（离线或文件不存在）——照常手动更新",
@@ -692,6 +694,7 @@ const I18N = {
     syncing:"Updating…", synced:(n,last)=>`Updated · ${n} comparable day${n===1?"":"s"}${last?` · actual rain to ${last}`:""}`,
     syncPartial:(names,n)=>`⚠ Not all updated: ${names} (older data kept — try again shortly) · ${n} comparable day${n===1?"":"s"}`,
     notRanked:(n,mx)=>`only ${n}/${mx} days · not ranked yet`,
+    resExport:"Export results to Excel",
     srvOk:(day,hm,n)=>`🤖 Auto-collected ${day} ${hm} (${n} orchards)`, srvToday:"today",
     srvStale:(d)=>`⚠ Auto data is ${d} day(s) old — the daily job may have stopped; update by hand or use drive mode`,
     srvErr:"⚠ Couldn't load auto data (offline or file missing) — update by hand as usual",
@@ -2374,33 +2377,45 @@ const WATCH_MIN_DAYS = 8;      // below this we don't even tentatively flag it
    so a model with 1 day could be "confident" against IFS's 20.) Always uses the full
    30-day window, independent of the 7/14/30 view selector, so the ≥20-day bar is
    reachable whatever range is on screen. */
-function analyzeFarmVsIFS(locId){
+/* Every challenger vs IFS at one orchard, on PAIRED days (challenger + IFS + ERA5 all
+   present) over the full 30-day window. Shared by the 🏆 card and its Excel export so
+   the two can never disagree. tier: 3 = confident beat, 2 = ≥8 paired days, 1 = thin. */
+function pairsVsIFS(locId){
   const recs = state.records[locId]||{};
   const days = dateRange(SCORE_WINDOW);
-  const challengers = MODELS().filter(m=>m.key!=="ifs");
-  if(!MODELS().some(m=>m.key==="ifs")) return { status:"nodata", cmpN:0 };
-  const tier = (n,dMae,dHit)=>
-    (n>=BEATS_MIN_DAYS && dMae>=BEATS_MAE_MARGIN && dHit>=BEATS_HIT_MARGIN) ? 3 :
-    (n>=WATCH_MIN_DAYS) ? 2 : 1;
-  let best=null, maxPaired=0;
-  for(const m of challengers){
+  if(!MODELS().some(m=>m.key==="ifs")) return [];
+  const out = [];
+  for(const m of MODELS().filter(m=>m.key!=="ifs")){
     const paired = days.filter(d=>{ const r=recs[d]; return r && r.actual!=null && r.ifs!=null && r[m.key]!=null; });
-    if(paired.length>maxPaired) maxPaired=paired.length;
-    if(!paired.length) continue;
+    if(!paired.length){ out.push({ key:m.key, cmpN:0 }); continue; }
     const s = metricsOn(recs, paired, m.key), si = metricsOn(recs, paired, "ifs");
     const dMae = Math.round((si.mae - s.mae)*10)/10;   // + = better than IFS
-    const dHit = s.hit - si.hit;
-    if(!(dMae>0 && dHit>0)) continue;                  // a "beat" needs BOTH metrics
-    const strength = Math.min(dMae/BEATS_MAE_MARGIN, dHit/BEATS_HIT_MARGIN);
-    const cand = { key:m.key, dMae, dHit, strength, cmpN:paired.length,
-      tier: tier(paired.length, dMae, dHit),
-      pod:s.pod, podIfs:si.pod, far:s.far, farIfs:si.far, csi:s.csi, csiIfs:si.csi,
-      rainDays:s.rainDays };
+    const dHit = s.hit - si.hit;                       // + = better than IFS
+    const beatsBoth = dMae>0 && dHit>0;                // a "beat" needs BOTH metrics
+    const n = paired.length;
+    const tier = (beatsBoth && n>=BEATS_MIN_DAYS && dMae>=BEATS_MAE_MARGIN && dHit>=BEATS_HIT_MARGIN) ? 3 :
+                 (n>=WATCH_MIN_DAYS) ? 2 : 1;
+    out.push({ key:m.key, cmpN:n, s, si, dMae, dHit, beatsBoth, tier,
+      strength: beatsBoth ? Math.min(dMae/BEATS_MAE_MARGIN, dHit/BEATS_HIT_MARGIN) : 0 });
+  }
+  return out;
+}
+function analyzeFarmVsIFS(locId){
+  if(!MODELS().some(m=>m.key==="ifs")) return { status:"nodata", cmpN:0 };
+  let best=null, maxPaired=0;
+  for(const p of pairsVsIFS(locId)){
+    if(p.cmpN>maxPaired) maxPaired=p.cmpN;
+    if(!p.cmpN || !p.beatsBoth) continue;
+    const cand = { key:p.key, dMae:p.dMae, dHit:p.dHit, strength:p.strength, cmpN:p.cmpN, tier:p.tier,
+      pod:p.s.pod, podIfs:p.si.pod, far:p.s.far, farIfs:p.si.far, csi:p.s.csi, csiIfs:p.si.csi,
+      rainDays:p.s.rainDays };
     // a confident beat outranks a stronger-looking but thinner one
     if(!best || cand.tier>best.tier || (cand.tier===best.tier && cand.strength>best.strength)) best=cand;
   }
   if(!maxPaired) return { status:"nodata", cmpN:0 };
-  if(!best) return { status:"ifs_best", cmpN:maxPaired };   // IFS not beaten on both metrics
+  // IFS not beaten on both metrics — but only call it "IFS still best" once there are
+  // enough paired days to mean anything; below that it is simply "too few days".
+  if(!best) return { status: maxPaired>=WATCH_MIN_DAYS ? "ifs_best" : "thin", cmpN:maxPaired };
   const status = best.tier===3 ? "confident" : best.tier===2 ? "watch" : "thin";
   return { status, ...best };
 }
@@ -2535,6 +2550,7 @@ function openResults(){
         <div class="res-intro">${t.resIntro}</div>
         ${serverNote()?`<div class="srv-note ${/⚠/.test(serverNote())?"warn":""}">${esc(serverNote())}</div>`:""}
         ${bannerHTML}
+        ${A.withData>0 ? `<button class="share-btn res-export" id="resExport" type="button">⬇ ${t.resExport}</button>` : ""}
         <div class="res-section-h res-h-win">✅ ${t.resConfidentH} <span class="res-count">${counts}</span></div>
         <div class="res-section">${confidentHTML}</div>
         <div class="res-section-h res-h-watch">👀 ${t.resWatchH}</div>
@@ -2555,8 +2571,115 @@ function openResults(){
   document.body.appendChild(ov);
   ov.addEventListener("click",(e)=>{ if(e.target===ov) closeResults(); });
   document.getElementById("resClose").addEventListener("click", closeResults);
+  const xb=document.getElementById("resExport"); if(xb) xb.addEventListener("click", exportResultsXLS);
 }
 function closeResults(){ const o=document.getElementById("resultsOv"); if(o) o.remove(); }
+
+/* ---------- 🏆 results → Excel ----------
+   Sheet 1 Summary: one row per orchard, the same verdict the card shows.
+   Sheet 2 Model vs IFS: every challenger at every orchard on its paired days — the full
+            evidence behind the verdicts, for choosing production DEFAULT_SELECTION.
+   Sheet 3 By model: counts of confident / watch beats per model across all orchards.
+   Sheet 4 Method: window, reference, thresholds, data time — so the file explains itself. */
+function exportResultsXLS(){
+  if(typeof XLSX==="undefined"){ toast(T().exportErr); return; }
+  const zh = LANG==="zh", t = T();
+  const H = zh ? {
+    region:"地区", farm:"果园", lat:"纬度", lon:"经度", status:"结论", model:"模式", best:"最佳挑战模式",
+    days:"配对天数", maeM:"平均误差 模式 (mm/日)", maeI:"平均误差 IFS (mm/日)", dMae:"雨量比 IFS 准 (mm/日，+ 较好)",
+    hitM:"晴雨判断 模式 %", hitI:"晴雨判断 IFS %", dHit:"晴雨比 IFS 高 (百分点，+ 较好)",
+    podM:"接住雨 POD 模式 %", podI:"接住雨 POD IFS %", farM:"空报 FAR 模式 %", farI:"空报 FAR IFS %",
+    csiM:"综合 CSI 模式 %", csiI:"综合 CSI IFS %", biasM:"偏向 模式 (mm/日)", biasI:"偏向 IFS (mm/日)", rain:"实际下雨日",
+    pair:"与 IFS 比较", beatsBoth:"两项都赢 IFS", amtOnly:"只赢雨量", hitOnly:"只赢晴雨", ifsBetter:"IFS 较好或相同",
+    nCompared:"有配对数据的果园", nReliable:"≥20 配对天的果园", nConf:"可信赢 IFS 的果园", nWatch:"值得观察的果园",
+    avgDMae:"平均 雨量比 IFS 准 (≥20天果园)", avgDHit:"平均 晴雨比 IFS 高 (≥20天果园)",
+    sSummary:"总结", sPairs:"各模式对 IFS", sModel:"按模式", sMethod:"方法说明", item:"项目", value:"内容",
+    stConf:"可信：稳定赢 IFS", stWatch:"值得观察", stIfs:"IFS 仍最佳", stThin:"样本太少", stNone:"暂无数据"
+  } : {
+    region:"Region", farm:"Orchard", lat:"Latitude", lon:"Longitude", status:"Verdict", model:"Model", best:"Best challenger",
+    days:"Paired days", maeM:"Avg miss model (mm/day)", maeI:"Avg miss IFS (mm/day)", dMae:"Amount better than IFS (mm/day, + = better)",
+    hitM:"Dry/wet model %", hitI:"Dry/wet IFS %", dHit:"Dry/wet better than IFS (pts, + = better)",
+    podM:"Catches rain POD model %", podI:"Catches rain POD IFS %", farM:"False alarms FAR model %", farI:"False alarms FAR IFS %",
+    csiM:"Overall CSI model %", csiI:"Overall CSI IFS %", biasM:"Bias model (mm/day)", biasI:"Bias IFS (mm/day)", rain:"Actual rain days",
+    pair:"Versus IFS", beatsBoth:"Beats IFS on both", amtOnly:"Better amount only", hitOnly:"Better dry/wet only", ifsBetter:"IFS better or equal",
+    nCompared:"Orchards with paired data", nReliable:"Orchards with ≥20 paired days", nConf:"Confident beats", nWatch:"Worth watching",
+    avgDMae:"Mean amount gain vs IFS (≥20-day orchards)", avgDHit:"Mean dry/wet gain vs IFS (≥20-day orchards)",
+    sSummary:"Summary", sPairs:"Model vs IFS", sModel:"By model", sMethod:"Method", item:"Item", value:"Value",
+    stConf:"Confident: beats IFS", stWatch:"Worth watching", stIfs:"IFS still best", stThin:"Too few days", stNone:"No data yet"
+  };
+  const stLabel = { confident:H.stConf, watch:H.stWatch, ifs_best:H.stIfs, thin:H.stThin, nodata:H.stNone };
+  const order = { confident:0, watch:1, ifs_best:2, thin:3, nodata:4 };
+  const v = x => (x==null ? "" : x);
+  const byName = (a,b)=> (a.loc.region||"").localeCompare(b.loc.region||"") || a.loc.name.localeCompare(b.loc.name);
+
+  const rows = activeLocs().map(loc=>({ loc, a:analyzeFarmVsIFS(loc.id), pairs:pairsVsIFS(loc.id) }));
+
+  // Sheet 1 — Summary
+  const s1 = [[H.region,H.farm,H.lat,H.lon,H.status,H.best,H.days,H.dMae,H.dHit,H.podM,H.podI,H.farM,H.farI,H.csiM,H.csiI,H.rain]];
+  rows.slice().sort((x,y)=> order[x.a.status]-order[y.a.status] || byName(x,y)).forEach(({loc,a})=>{
+    const hasBest = a.key!=null;
+    s1.push([loc.region||"", loc.name, +loc.lat, +loc.lon, stLabel[a.status]||a.status,
+      hasBest?modelLabel(a.key):"", v(a.cmpN),
+      hasBest?a.dMae:"", hasBest?a.dHit:"", hasBest?v(a.pod):"", hasBest?v(a.podIfs):"",
+      hasBest?v(a.far):"", hasBest?v(a.farIfs):"", hasBest?v(a.csi):"", hasBest?v(a.csiIfs):"", hasBest?v(a.rainDays):""]);
+  });
+
+  // Sheet 2 — every challenger at every orchard
+  const s2 = [[H.region,H.farm,H.model,H.days,H.pair,H.maeM,H.maeI,H.dMae,H.hitM,H.hitI,H.dHit,
+               H.podM,H.podI,H.farM,H.farI,H.csiM,H.csiI,H.biasM,H.biasI,H.rain]];
+  rows.slice().sort(byName).forEach(({loc,pairs})=>{
+    for(const p of pairs){
+      if(!p.cmpN){ s2.push([loc.region||"", loc.name, modelLabel(p.key), 0, H.stNone]); continue; }
+      const verdict = p.beatsBoth ? H.beatsBoth : p.dMae>0 ? H.amtOnly : p.dHit>0 ? H.hitOnly : H.ifsBetter;
+      s2.push([loc.region||"", loc.name, modelLabel(p.key), p.cmpN, verdict,
+        p.s.mae, p.si.mae, p.dMae, p.s.hit, p.si.hit, p.dHit,
+        v(p.s.pod), v(p.si.pod), v(p.s.far), v(p.si.far), v(p.s.csi), v(p.si.csi),
+        p.s.bias, p.si.bias, p.s.rainDays]);
+    }
+  });
+
+  // Sheet 3 — per-model roll-up (means only over orchards with a reliable sample)
+  const s3 = [[H.model,H.nCompared,H.nReliable,H.nConf,H.nWatch,H.avgDMae,H.avgDHit]];
+  for(const m of MODELS().filter(m=>m.key!=="ifs")){
+    const ps = rows.map(r=>r.pairs.find(p=>p.key===m.key)).filter(p=>p && p.cmpN);
+    const rel = ps.filter(p=>p.cmpN>=BEATS_MIN_DAYS);
+    const mean = arr => arr.length ? Math.round(arr.reduce((x,y)=>x+y,0)/arr.length*10)/10 : "";
+    s3.push([modelLabel(m.key), ps.length, rel.length,
+      rows.filter(r=>r.a.status==="confident" && r.a.key===m.key).length,
+      rows.filter(r=>r.a.status==="watch" && r.a.key===m.key).length,
+      mean(rel.map(p=>p.dMae)), mean(rel.map(p=>p.dHit))]);
+  }
+
+  // Sheet 4 — method / provenance
+  const now = new Date();
+  const stamp = ymd(now)+" "+new Intl.DateTimeFormat("en-GB",{timeZone:TZ,hour:"2-digit",minute:"2-digit"}).format(now);
+  const s4 = [[H.item,H.value],
+    [zh?"导出时间 (马来西亚)":"Exported (Malaysia time)", stamp],
+    [zh?"评分窗口":"Scoring window", zh?`最近 ${SCORE_WINDOW} 天（ERA5 约延迟 6 天）`:`Last ${SCORE_WINDOW} days (ERA5 lags ~6 days)`],
+    [zh?"预报":"Forecast", "Open-Meteo Previous Runs · precipitation_previous_day1 (24 h lead)"],
+    [zh?"实际雨量":"Actual rain", REF_LABEL],
+    [zh?"比较方式":"Comparison", zh?"每个模式只在它与 IFS、ERA5 三者都有完整数据的「配对日」上与 IFS 比较":"Each model vs IFS only on paired days where the model, IFS and ERA5 all have complete data"],
+    [zh?"可信门槛":"Confident threshold", zh?`≥${BEATS_MIN_DAYS} 配对天，且雨量准 ≥${BEATS_MAE_MARGIN} mm/日、晴雨高 ≥${BEATS_HIT_MARGIN} 百分点`:`≥${BEATS_MIN_DAYS} paired days, AND ≥${BEATS_MAE_MARGIN} mm/day better amount AND ≥${BEATS_HIT_MARGIN} pts better dry/wet`],
+    [zh?"观察门槛":"Watch threshold", zh?`≥${WATCH_MIN_DAYS} 配对天且两项都赢`:`≥${WATCH_MIN_DAYS} paired days and ahead on both`],
+    [zh?"有雨日":"Wet day", `≥ ${DRY_THRESHOLD} mm`],
+    [zh?"自动数据":"Auto data", serverNote()||"—"],
+    [zh?"果园数":"Orchards", activeLocs().length],
+    [zh?"注意":"Caveat", t.resCaveat.replace(/<[^>]+>/g,"").replace(/^⚠\s*/,"")]];
+
+  const wb = XLSX.utils.book_new();
+  const add = (aoa, name, widths)=>{
+    const ws = XLSX.utils.aoa_to_sheet(aoa);
+    ws["!cols"] = widths.map(w=>({wch:w}));
+    if(aoa.length>1 && aoa[0].length>2) ws["!autofilter"] = { ref: XLSX.utils.encode_range({s:{r:0,c:0}, e:{r:aoa.length-1, c:aoa[0].length-1}}) };
+    XLSX.utils.book_append_sheet(wb, ws, name);
+  };
+  add(s1, H.sSummary, [16,28,9,9,18,14,9,12,12,10,10,10,10,10,10,9]);
+  add(s2, H.sPairs,   [16,28,12,9,18,11,11,12,10,10,12,10,10,10,10,10,10,10,10,9]);
+  add(s3, H.sModel,   [14,14,14,14,14,18,18]);
+  add(s4, H.sMethod,  [22,90]);
+  const d = ymd(now);
+  XLSX.writeFile(wb, `${d.slice(0,4)}-${d.slice(5,7)}${d.slice(8,10)}_rainscore-lab-results.xlsx`);
+}
 
 /* ---------- Server data: collected daily by the GitHub Action ----------
    .github/workflows/rainscore-collect.yml runs tools/collect.mjs every morning (~04:11
