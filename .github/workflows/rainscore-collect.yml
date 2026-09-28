@@ -1,0 +1,53 @@
+# RainScore Lab — collect forecasts + ERA5 actuals for every seed orchard, daily.
+# Writes data/rainscore-data.json; the app loads it on open, so results are ready
+# without anyone fetching by hand. Manual "Update records" and drive mode still work
+# and only fetch what this file doesn't already cover.
+name: RainScore daily data
+
+on:
+  schedule:
+    - cron: "11 20 * * *"   # 20:11 UTC = 04:11 Malaysia time, before the morning broadcast
+  workflow_dispatch: {}      # "Run workflow" button in the Actions tab
+
+permissions:
+  contents: write
+
+concurrency:
+  group: rainscore-collect
+  cancel-in-progress: false
+
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Collect forecasts and ERA5
+        id: collect
+        continue-on-error: true      # still commit what succeeded; fail the job afterwards
+        run: node tools/collect.mjs
+
+      - name: Commit data file
+        if: always()
+        run: |
+          git config user.name  "rainscore-bot"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/rainscore-data.json
+          if git diff --cached --quiet; then
+            echo "No change."
+          else
+            git commit -m "data: daily collect $(TZ=Asia/Kuala_Lumpur date +%Y-%m-%d)"
+            git pull --rebase
+            git push
+          fi
+
+      - name: Report failure
+        if: steps.collect.outcome == 'failure'
+        run: |
+          echo "::error::Collector reported too many failed orchards — see the 'Collect' step log."
+          exit 1
