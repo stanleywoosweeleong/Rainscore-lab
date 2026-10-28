@@ -552,7 +552,7 @@ footer{text-align:center;padding:18px 10px 8px;font-size:11px;color:var(--ink2)}
 
 const TZ = "Asia/Kuching";
 const STORE_KEY = "rainscore_lab_v1";
-const CACHE_TAG = "rainscore-lab-20261028-51";
+const CACHE_TAG = "rainscore-lab-20261028-52";
 const DRY_THRESHOLD = 1.0;   // mm — <1mm counts as a "dry day" (field-adjustable)
 const PREV_HOST = "https://previous-runs-api.open-meteo.com/v1/forecast";
 const ARCH_HOST = "https://archive-api.open-meteo.com/v1/archive";
@@ -933,7 +933,7 @@ const SEED_FARMS = [
   ["Bentong Selatan 文冬市南",3.516833,101.897667,"Bentong 文冬"],
   ["Waterway Villa 水道别墅",3.44917,101.90056,"Bentong 文冬"],
   ["Kg. Benus 甘榜本努斯",3.50783,101.92667,"Bentong 文冬"],
-  ["Tras 都赖",3.73622,101.80792,"Bentong 文冬"],
+  ["Tras 都赖",3.73622,101.80792,"Raub 劳勿"],
   ["Kampung Hulu Lebu 乌鲁乐布新村",3.57278,101.92611,"Bentong 文冬"],
   ["Kampung Lebu 甘榜乐布",3.616,101.933,"Bentong 文冬"],
   ["Sungai Ruan 双溪兰",3.8542814,101.9430543,"Bentong Team 团队"],
@@ -993,11 +993,14 @@ const SEED_FARMS = [
 /* Seed version. Bump this whenever SEED_FARMS gains entries that existing installs
    should receive. The migration below re-runs whenever the stored version is older,
    adding only the genuinely new (name+region) pairings. */
-const SEED_VERSION = 5;  // v1: 106 · v2: dual-region · v3: Bentong Team · v4: Jerantut 中文 · v5: Miketam 中文
+const SEED_VERSION = 6;  // v1: 106 · v2: dual-region · v3: Bentong Team · v4: Jerantut 中文 · v5: Miketam 中文 · v6: Tras → Raub
 
 /* Region label corrections for already-seeded installs: old string → new string.
    Applied before the add-new step so renamed farms aren't re-added as duplicates. */
 const REGION_RENAMES = { "Jerantut": "Jerantut 而连突", "Miketam": "Miketam 苏晓薇" };
+/* Per-farm region corrections: name → [old region, new region]. Moves the existing
+   entry (keeping its id, so its records stay) instead of adding a duplicate. */
+const FARM_MOVES = { "Tras 都赖": ["Bentong 文冬","Raub 劳勿"] };   // Tras is a mukim of Raub district
 
 if(!state.seeded && (!state.locations || state.locations.length===0)){
   state.locations = SEED_FARMS.map(([name,lat,lon,region],i)=>({
@@ -1018,6 +1021,11 @@ if(state.seeded && state.locations && (state.seedVersion||0) < SEED_VERSION){
   // rename outdated region labels (e.g. Jerantut → Jerantut 而连突)
   for(const loc of state.locations){
     if(loc.region && REGION_RENAMES[loc.region]) loc.region = REGION_RENAMES[loc.region];
+  }
+  // move farms whose region was corrected (e.g. Tras: Bentong → Raub)
+  for(const loc of state.locations){
+    const mv = FARM_MOVES[loc.name];
+    if(mv && loc.region===mv[0]) loc.region = mv[1];
   }
   // back-fill region onto any seeded farm that lacks it (match by coordinate)
   for(const loc of state.locations){
