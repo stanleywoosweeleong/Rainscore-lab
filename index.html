@@ -613,6 +613,8 @@ const I18N = {
     notRanked:(n,mx)=>`仅 ${n}/${mx} 天 · 暂不排名`,
     resExport:"导出结果 Excel",
     srvOk:(day,hm,n)=>`🤖 自动数据：${day} ${hm} 已更新（${n} 个果园）`, srvToday:"今天",
+    srvPartial:(day,hm,ok,n)=>`⚠ 自动数据：${day} ${hm} 已运行，但只有 ${ok}/${n} 个果园完整更新——其余照常手动更新或用开车模式`,
+    srvFailed:(day,hm,n)=>`⚠ 自动数据：${day} ${hm} 已运行但抓取失败（0/${n} 个果园更新）——照常手动更新或用开车模式`,
     srvStale:(d)=>`⚠ 自动数据已 ${d} 天没更新——每日自动抓取可能停了，可手动更新或用开车模式`,
     srvErr:"⚠ 读不到自动数据（离线或文件不存在）——照常手动更新",
     srvVersion:"⚠ 自动数据版本不符，已忽略——照常手动更新",
@@ -696,6 +698,8 @@ const I18N = {
     notRanked:(n,mx)=>`only ${n}/${mx} days · not ranked yet`,
     resExport:"Export results to Excel",
     srvOk:(day,hm,n)=>`🤖 Auto-collected ${day} ${hm} (${n} orchards)`, srvToday:"today",
+    srvPartial:(day,hm,ok,n)=>`⚠ Auto data: job ran ${day} ${hm}, but only ${ok}/${n} orchards fully updated — fetch the rest by hand or use drive mode`,
+    srvFailed:(day,hm,n)=>`⚠ Auto data: job ran ${day} ${hm} but collection failed (0/${n} orchards updated) — update by hand or use drive mode`,
     srvStale:(d)=>`⚠ Auto data is ${d} day(s) old — the daily job may have stopped; update by hand or use drive mode`,
     srvErr:"⚠ Couldn't load auto data (offline or file missing) — update by hand as usual",
     srvVersion:"⚠ Auto data is from an incompatible version and was ignored — update by hand as usual",
@@ -1034,29 +1038,33 @@ async function fetchJSON(url, tries=4, timeoutMs=15000){
     // Abort a stalled request (server accepts but never responds, flaky signal) so a
     // single hung fetch can't freeze the drive loop and block the stop button. Also
     // abort instantly when the user taps stop during drive mode.
+    // Both protections stay armed until the BODY has been parsed, not just until the
+    // headers arrive: a server that sends headers and then stalls the body would
+    // otherwise hang this await forever, past the timeout and past the Stop button.
     const ctl=new AbortController();
     const timer=setTimeout(()=>ctl.abort(), timeoutMs);
     const onStop=()=>ctl.abort();
-    if(typeof DRIVE_STOP_SIGNAL!=="undefined" && DRIVE_STOP_SIGNAL) DRIVE_STOP_SIGNAL.addEventListener("abort",onStop);
+    const stopSig = (typeof DRIVE_STOP_SIGNAL!=="undefined" && DRIVE_STOP_SIGNAL) ? DRIVE_STOP_SIGNAL : null;
+    if(stopSig) stopSig.addEventListener("abort",onStop);
+    let wait = 0;
     try{
       const r = await fetch(url,{signal:ctl.signal});
-      clearTimeout(timer);
-      if(DRIVE_STOP_SIGNAL) DRIVE_STOP_SIGNAL.removeEventListener("abort",onStop);
       if(r.status===429 || r.status===503){
         // honour Retry-After if the server sends it, else exponential-ish backoff with jitter
         const ra = parseInt(r.headers.get("retry-after")||"",10);
-        const wait = (!isNaN(ra) ? ra*1000 : (1500 * Math.pow(1.8, i))) + Math.random()*1200;
-        await sleep(Math.min(wait, 12000));
-        continue;
+        wait = Math.min((!isNaN(ra) ? ra*1000 : (1500 * Math.pow(1.8, i))) + Math.random()*1200, 12000);
+      }else{
+        if(!r.ok) throw new Error("HTTP "+r.status);
+        return await r.json();               // still covered by timer + stop signal
       }
-      if(!r.ok) throw new Error("HTTP "+r.status);
-      return await r.json();
     }catch(e){
-      clearTimeout(timer);
-      if(DRIVE_STOP_SIGNAL) DRIVE_STOP_SIGNAL.removeEventListener("abort",onStop);
       if(driveAbort) throw e;                 // user stopped — bail out, don't keep retrying
-      lastErr=e; await sleep(900+Math.random()*900);
+      lastErr=e; wait = 900+Math.random()*900;
+    }finally{
+      clearTimeout(timer);
+      if(stopSig) stopSig.removeEventListener("abort",onStop);
     }
+    if(i<tries-1) await sleep(wait);          // backoff runs with the request fully torn down
   }
   throw lastErr || new Error("fetch failed");
 }
@@ -1199,6 +1207,10 @@ async function syncLocation(loc, pastDays, onStep, force){
   if(driveRunning && driveAbort){ save(); return { ok:false, stale:false, aborted:true, failed, lastActual:lastActualDay(loc.id) }; }
   onStep && onStep("actual");
   const ERA5_LAG_DAYS = 5;
+  // Newest complete ERA5 day must be no older than this, or the reply counts as stale —
+  // stored, but NOT marked "done today", so the next open retries. Same value as
+  // ERA5_MAX_LAG_DAYS in tools/collect.mjs.
+  const ERA5_MAX_LAG_DAYS = 10;
   const end = daysAgoYMD(ERA5_LAG_DAYS);
   let start = daysAgoYMD(Math.max(pastDays, SCORE_WINDOW)-1);
   const floor = daysAgoYMD(ACT_BACKFILL_MAX);
@@ -1213,8 +1225,12 @@ async function syncLocation(loc, pastDays, onStep, force){
       const recs = recsNow();
       for(const day in act){ recs[day]=recs[day]||{}; recs[day].actual=act[day]; }
       // A 30-day window always contains complete ERA5 days; zero back means something
-      // is wrong (outage, bad response) — not done, retry next open.
-      if(Object.keys(act).length) fcNow().__actual = today;
+      // is wrong (outage, bad response). And "some days" is not enough either: the
+      // newest complete day must be within the lag allowance, otherwise the archive is
+      // stalled and marking it done would block today's retry while showing old data.
+      const days = Object.keys(act);
+      const latest = days.length ? days.reduce((a,b)=> b>a ? b : a) : null;
+      if(latest && latest >= daysAgoYMD(ERA5_MAX_LAG_DAYS)) fcNow().__actual = today;
       else failed.push("__actual");
     }catch(e){
       if(moved()) return { ok:false, stale:true, failed:[], lastActual:null };
@@ -2697,24 +2713,30 @@ const farmKey = (lat, lon) => `${(+lat).toFixed(4)},${(+lon).toFixed(4)}`;
 async function loadServerData(){
   if(location.protocol==="file:"){ SERVER_INFO={status:"file"}; return; }   // local testing: manual only
   let d;
+  const ctl = new AbortController(); const tm = setTimeout(()=>ctl.abort(), 10000);
   try{
-    const ctl = new AbortController(); const tm = setTimeout(()=>ctl.abort(), 10000);
     const r = await fetch(SERVER_DATA_URL, { cache:"no-store", signal:ctl.signal });
-    clearTimeout(tm);
     if(!r.ok) throw new Error("HTTP "+r.status);
-    d = await r.json();
+    d = await r.json();                       // timeout covers the body too
   }catch(e){ SERVER_INFO={status:"err"}; return; }
+  finally{ clearTimeout(tm); }
   if(!d || d.refVersion!==REF_VERSION || !d.farms){ SERVER_INFO={status:"version"}; return; }
   SERVER_INFO = mergeServerData(d);
 }
 function mergeServerData(d){
   const today = todayYMD(), keys = new Set(MODEL_POOL.map(m=>m.key));
   const fc = (state.fetchedOn = state.fetchedOn || {});
-  let matched = 0;
+  // matched = orchards the file knows; fresh = those where EVERY source (all models +
+  // ERA5) succeeded on the collector's run day. "generatedAt" only says when the job
+  // ran — fresh says whether it actually got the data. The banner must tell the two apart.
+  let matched = 0, fresh = 0;
+  const runDay = d.today;
   for(const loc of state.locations){
     const sf = d.farms[farmKey(loc.lat, loc.lon)];
     if(!sf) continue;
     if(Object.keys(sf.f||{}).length || Object.keys(sf.a||{}).length) matched++;
+    const ok = sf.ok||{};
+    if(runDay && ok.__actual===runDay && MODEL_POOL.every(m => ok[m.key]===runDay)) fresh++;
     const recs = state.records[loc.id] || (state.records[loc.id] = {});
     for(const day in (sf.f||{})){
       for(const k in sf.f[day]){
@@ -2734,7 +2756,7 @@ function mergeServerData(d){
     for(const k in (sf.ok||{})) if(sf.ok[k]===today && d.today===today) locFc[k] = today;
   }
   save();
-  return { status:"ok", at:d.generatedAt, farms:Object.keys(d.farms).length, matched, failed:d.failed||0 };
+  return { status:"ok", at:d.generatedAt, farms:Object.keys(d.farms).length, matched, fresh, failed:d.failed||0 };
 }
 /* Plain-language line about the server data's age — shown under the sync status and in
    the results card, so a stalled daily job is visible instead of silently stale. */
@@ -2748,6 +2770,10 @@ function serverNote(){
   if(ageH > SERVER_STALE_H) return t.srvStale(Math.max(1, Math.round(ageH/24)));
   const hm = new Intl.DateTimeFormat("en-GB",{timeZone:TZ,hour:"2-digit",minute:"2-digit"}).format(at);
   const day = ymd(at)===todayYMD() ? t.srvToday : shortDate(ymd(at));
+  // The job RAN at `at`; whether it got the data is a separate question. A run where
+  // every orchard failed must not read as "auto-collected".
+  if(s.matched>0 && s.fresh===0) return t.srvFailed(day, hm, s.matched);
+  if(s.fresh < s.matched || s.failed>0) return t.srvPartial(day, hm, s.fresh, s.matched);
   return t.srvOk(day, hm, s.matched);
 }
 

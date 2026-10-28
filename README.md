@@ -54,6 +54,14 @@ Setup, once:
    until then the app shows "⚠ Couldn't load auto data" and works by hand as before).
 
 - Extra orchards for the daily run: `data/extra-farms.json` as `[["Name", lat, lon, "Region"], ...]`.
+- After committing, the workflow requests a GitHub Pages build itself. This is required:
+  GitHub does not start a Pages build for commits pushed with the workflow's own token,
+  so without it the data file updates in the repo but the live site keeps the old one.
+  (If Pages is ever switched from "Deploy from a branch" to "GitHub Actions", replace
+  that step with an `actions/deploy-pages` job.)
+- ERA5 is only marked "refreshed" when its newest complete day is within
+  `ERA5_MAX_LAG_DAYS` (10). Older = stalled archive → stored but retried, and the app
+  banner reports how many orchards actually updated, not just when the job ran.
 - If more than 10% of orchards fail, the run still saves what worked, then fails so
   GitHub emails you. The app also warns when the file is over 30 hours old.
 - The file keeps 45 days; git history of it is the permanent archive.

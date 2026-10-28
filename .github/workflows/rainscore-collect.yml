@@ -11,6 +11,7 @@ on:
 
 permissions:
   contents: write
+  pages: write               # needed to request the Pages build after the bot commit (see below)
 
 concurrency:
   group: rainscore-collect
@@ -33,6 +34,7 @@ jobs:
         run: node tools/collect.mjs
 
       - name: Commit data file
+        id: commit
         if: always()
         run: |
           git config user.name  "rainscore-bot"
@@ -40,10 +42,27 @@ jobs:
           git add data/rainscore-data.json
           if git diff --cached --quiet; then
             echo "No change."
+            echo "pushed=false" >> "$GITHUB_OUTPUT"
           else
             git commit -m "data: daily collect $(TZ=Asia/Kuala_Lumpur date +%Y-%m-%d)"
             git pull --rebase
             git push
+            echo "pushed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      # Pages publishes from a branch, and GitHub does NOT start a Pages build for commits
+      # pushed with GITHUB_TOKEN — so without this step the new data file sits in the repo
+      # while the live site keeps serving yesterday's. Requesting the build explicitly
+      # makes the push reach the published app.
+      - name: Publish to GitHub Pages
+        if: always() && steps.commit.outputs.pushed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh api --method POST "repos/${GITHUB_REPOSITORY}/pages/builds" --silent; then
+            echo "Pages build requested."
+          else
+            echo "::warning::Could not request a Pages build. If this site publishes from a branch, check that Pages is enabled; if it publishes with GitHub Actions, add a deploy job instead."
           fi
 
       - name: Report failure

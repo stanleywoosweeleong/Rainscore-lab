@@ -30,6 +30,11 @@ const REF_MODEL = "era5";
 const REF_VERSION = "era5-hourly-v1";     // must equal REF_VERSION in index.html
 const KEEP_DAYS = 45;                     // 30-day scoring window + ERA5 lag + margin
 const ERA5_LAG_DAYS = 5;
+// ERA5 normally lags 5–6 days. If the newest COMPLETE day we got back is older than this,
+// the archive is stalled (or returned an old window): the data is still stored, but the
+// source is NOT marked as refreshed today, so the app keeps retrying instead of trusting
+// a success flag over stale data. Must equal ERA5_MAX_LAG_DAYS in index.html.
+const ERA5_MAX_LAG_DAYS = 10;
 const GAP_MS = +(process.env.GAP_MS ?? 400);   // pause between orchards (rate-limit friendly)
 const FAIL_LIMIT = 0.10;
 const TRIES = +(process.env.RETRIES ?? 4);          // env overrides are for local tests only
@@ -136,7 +141,15 @@ for(const p of points.values()){
     if(!j || !j.hourly) throw new Error("no hourly data");
     const act = bucketHourly(j.hourly.time, j.hourly.precipitation);
     for(const day in act) f.a[day] = act[day];
-    if(Object.keys(act).length) f.ok.__actual = today; else errs.push("era5: no complete days");
+    // Freshness gate: "success" means the newest complete day is within the lag allowance,
+    // not merely "something came back". An October 28 run that only reaches October 1
+    // is stale data, not a refresh.
+    const days = Object.keys(act);
+    const latest = days.length ? days.reduce((a,b)=> b>a ? b : a) : null;
+    const freshFloor = daysAgo(ERA5_MAX_LAG_DAYS);
+    if(!latest) errs.push("era5: no complete days");
+    else if(latest < freshFloor) errs.push(`era5: stale (latest complete day ${latest}, need ≥ ${freshFloor})`);
+    else f.ok.__actual = today;
   }catch(e){ errs.push("era5: "+e.message); }
 
   if(errs.length) failures.push({ farm:p.names[0], key:p.key, errors:errs });
